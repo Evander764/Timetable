@@ -11,8 +11,8 @@ export function Sidebar() {
           <Waves size={21} strokeWidth={2.4} />
         </div>
         <div>
-          <div className="text-[13px] font-medium text-slate-500">Timeable</div>
-          <div className="text-[18px] font-semibold text-slate-900">流的搭建</div>
+          <div className="text-[13px] font-medium text-slate-500">Timetable</div>
+          <div className="text-[18px] font-semibold text-slate-900">Timetable</div>
         </div>
       </div>
 
@@ -33,7 +33,7 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-5 rounded-lg border border-slate-200/70 bg-white/78 p-4 text-sm text-slate-500 shadow-[0_8px_18px_rgba(84,110,160,0.08)]">
-        <div className="font-semibold text-slate-700">流的搭建 v0.1.0</div>
+        <div className="font-semibold text-slate-700">Timetable v0.3.3</div>
         <div className="mt-3 flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
           <span>专注当下，持续成长</span>

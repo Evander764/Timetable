@@ -33,6 +33,15 @@ body {
   font-size: 14px;
 }
 
+body.overlay-window {
+  background: transparent;
+}
+
+body.overlay-window #root,
+body.overlay-window .overlay-root {
+  background: transparent;
+}
+
 * {
   box-sizing: border-box;
 }

@@ -69,7 +69,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
-public static class TimeableWin32 {
+public static class TimetableWin32 {
   [DllImport("user32.dll")]
   public static extern IntPtr GetForegroundWindow();
 
@@ -81,13 +81,13 @@ public static class TimeableWin32 {
 }
 "@
 
-function Write-TimeableJson($payload) {
+function Write-TimetableJson($payload) {
   $payload | ConvertTo-Json -Compress -Depth 5
 }
 
 function Get-WindowTitle($handle) {
   $builder = New-Object System.Text.StringBuilder 1024
-  [void][TimeableWin32]::GetWindowText($handle, $builder, $builder.Capacity)
+  [void][TimetableWin32]::GetWindowText($handle, $builder, $builder.Capacity)
   return $builder.ToString()
 }
 
@@ -114,17 +114,17 @@ function Looks-LikeUrl($value) {
 }
 
 try {
-  $handle = [TimeableWin32]::GetForegroundWindow()
+  $handle = [TimetableWin32]::GetForegroundWindow()
   if ($handle -eq [IntPtr]::Zero) {
-    Write-TimeableJson @{ isBrowser = $false }
+    Write-TimetableJson @{ isBrowser = $false }
     exit 0
   }
 
   [uint32]$processId = 0
-  [void][TimeableWin32]::GetWindowThreadProcessId($handle, [ref]$processId)
+  [void][TimetableWin32]::GetWindowThreadProcessId($handle, [ref]$processId)
   $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
   if ($null -eq $process) {
-    Write-TimeableJson @{ isBrowser = $false }
+    Write-TimetableJson @{ isBrowser = $false }
     exit 0
   }
 
@@ -143,7 +143,7 @@ try {
   }
 
   if (-not $browserMap.ContainsKey($processName)) {
-    Write-TimeableJson @{
+    Write-TimetableJson @{
       isBrowser = $false
       processName = $processName
       title = Get-WindowTitle $handle
@@ -170,7 +170,7 @@ try {
     }
   }
 
-  Write-TimeableJson @{
+  Write-TimetableJson @{
     isBrowser = $true
     processName = $processName
     browser = $browserMap[$processName]
@@ -178,7 +178,7 @@ try {
     url = $url
   }
 } catch {
-  Write-TimeableJson @{
+  Write-TimetableJson @{
     isBrowser = $false
     error = $_.Exception.Message
   }

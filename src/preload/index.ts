@@ -1,8 +1,8 @@
 import { pathToFileURL } from 'node:url'
 import { contextBridge, ipcRenderer } from 'electron'
-import type { TimeableApi } from '@shared/ipc'
+import type { TimetableApi } from '@shared/ipc'
 
-const api: TimeableApi = {
+const api: TimetableApi = {
   loadData: () => ipcRenderer.invoke('data:load'),
   updateData: (action) => ipcRenderer.invoke('data:update', action),
   updateSettings: (payload) => ipcRenderer.invoke('settings:update', payload),
@@ -24,7 +24,7 @@ const api: TimeableApi = {
   windowControl: (action) => ipcRenderer.invoke('window:control', action),
   overlayHover: (key, hovering) => ipcRenderer.send('overlay:hover', { key, hovering }),
   onDataChanged: (listener) => {
-    const subscription = (_event: Electron.IpcRendererEvent, data: Awaited<ReturnType<TimeableApi['loadData']>>) => {
+    const subscription = (_event: Electron.IpcRendererEvent, data: Awaited<ReturnType<TimetableApi['loadData']>>) => {
       listener(data)
     }
 

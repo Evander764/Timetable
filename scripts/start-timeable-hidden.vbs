@@ -19,7 +19,7 @@ For Each process In processes
   End If
 
   If InStr(1, commandLine, projectDir, vbTextCompare) > 0 And InStr(1, commandLine, " --type=", vbTextCompare) = 0 Then
-    shell.AppActivate "Timeable"
+    shell.AppActivate "Timetable"
     WScript.Quit 0
   End If
 Next

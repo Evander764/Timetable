@@ -120,8 +120,8 @@ export class AppStorage {
 
   async exportData(window?: BrowserWindow): Promise<ExportDataResult> {
     const options = {
-      title: '导出 Timeable 数据',
-      defaultPath: 'timeable-backup.json',
+      title: '导出 Timetable 数据',
+      defaultPath: 'timetable-backup.json',
       filters: [{ name: 'JSON 文件', extensions: ['json'] }],
     }
     const result = window ? await dialog.showSaveDialog(window, options) : await dialog.showSaveDialog(options)

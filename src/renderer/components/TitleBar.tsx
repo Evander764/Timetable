@@ -7,14 +7,14 @@ import { useAppStore } from '@renderer/store/appStore'
 export function TitleBar() {
   const location = useLocation()
   const isMaximized = useAppStore((state) => state.isMaximized)
-  const title = navTitleMap[location.pathname] ?? 'Timeable'
+  const title = navTitleMap[location.pathname] ?? 'Timetable'
   const controlClass =
     'h-9 w-11 rounded-lg border border-slate-200/90 bg-white/75 p-0 text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-950 active:scale-[0.98]'
 
   return (
     <header className="drag-region flex h-[60px] items-center justify-between border-b border-slate-200/70 bg-white/68 px-5 backdrop-blur-xl">
       <div>
-        <div className="text-xs text-slate-500">Timeable 控制中心</div>
+        <div className="text-xs text-slate-500">Timetable 控制中心</div>
         <div className="text-[18px] font-semibold text-slate-900">{title}</div>
       </div>
 

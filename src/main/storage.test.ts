@@ -13,7 +13,7 @@ describe('AppStorage', () => {
   let tempDir: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'timeable-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'timetable-'))
     vi.useFakeTimers()
   })
 

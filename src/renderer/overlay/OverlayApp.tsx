@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { LoadingState } from '@renderer/components/LoadingState'
 import { useAppStore } from '@renderer/store/appStore'
@@ -19,6 +20,11 @@ const widgetMap: Record<WidgetKey, (typeof DesktopMainPanel)> = {
 export function OverlayApp() {
   const { widgetKey } = useParams()
   const data = useAppStore((state) => state.data)
+
+  useEffect(() => {
+    document.body.classList.add('overlay-window')
+    return () => document.body.classList.remove('overlay-window')
+  }, [])
 
   if (!data || !widgetKey || !(widgetKey in widgetMap)) {
     return (

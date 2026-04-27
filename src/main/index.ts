@@ -47,7 +47,7 @@ async function bootstrap(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
-  app.setAppUserModelId('com.timeable.app')
+  app.setAppUserModelId('com.timetable.app')
   await bootstrap()
 
   app.on('activate', async () => {

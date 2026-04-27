@@ -1,8 +1,8 @@
 {
-  "name": "timeable",
+  "name": "timetable",
   "productName": "Timetable",
   "private": false,
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "A local Windows desktop planner for courses, tasks, goals, memos, countdowns, and desktop widgets.",
   "author": "Timetable Local Builder",
   "main": "out/main/index.js",

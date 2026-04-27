@@ -90,7 +90,7 @@ export type WindowStatePayload = {
   isMaximized: boolean
 }
 
-export type TimeableApi = {
+export type TimetableApi = {
   loadData: () => Promise<AppData>
   updateData: (action: DataAction) => Promise<AppData>
   updateSettings: (payload: SettingsUpdatePayload) => Promise<AppData>
