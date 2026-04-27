@@ -33,7 +33,7 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-5 rounded-lg border border-slate-200/70 bg-white/78 p-4 text-sm text-slate-500 shadow-[0_8px_18px_rgba(84,110,160,0.08)]">
-        <div className="font-semibold text-slate-700">Timetable v0.3.3</div>
+        <div className="font-semibold text-slate-700">Timetable v{__APP_VERSION__}</div>
         <div className="mt-3 flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
           <span>专注当下，持续成长</span>

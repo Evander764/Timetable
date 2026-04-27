@@ -73,7 +73,7 @@ export function BrowserUsagePage() {
         <Metric icon={<Bot size={22} />} label="AI 占比" value={`${aiPercent}%`} />
       </div>
 
-      <div className="grid grid-cols-[320px_1fr] gap-4">
+      <div className="grid min-w-0 grid-cols-[320px_minmax(0,1fr)] gap-4">
         <Card>
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-50 text-blue-600">
@@ -87,16 +87,16 @@ export function BrowserUsagePage() {
           <input className="form-input mt-5" type="date" value={selectedDate} max={todayKey} onChange={(event) => setSelectedDate(event.target.value)} />
           <div className="mt-5 grid gap-3">
             <InfoRow label="统计日期" value={selectedDate} />
-            <InfoRow label="网页条目" value={`${webPages.length} · ${webPercent}%`} />
+            <InfoRow label="网页占比" value={`${webPercent}% · ${webPages.length} 项`} />
             <InfoRow label="AI 占比" value={`${aiPercent}% · ${aiApps.length} 项`} />
             <InfoRow label="最高占比" value={topEntry ? `${getUsageDisplayDomain(topEntry)} · ${topPercent}%` : '暂无记录'} />
             <InfoRow label="占比基准" value="总使用 100%" />
           </div>
         </Card>
 
-        <Card>
+        <Card className="min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <div className="text-2xl font-semibold text-slate-900">使用明细</div>
+            <div className="text-2xl font-semibold text-slate-900">占比明细</div>
             <span className="text-sm text-slate-500">按总使用时间占比排序 · 总使用 100%</span>
           </div>
           <div className="mt-5 space-y-3">
@@ -107,25 +107,25 @@ export function BrowserUsagePage() {
               const displayDomain = getUsageDisplayDomain(page)
               const usagePercent = getUsagePercent(page.totalSeconds, day.totalSeconds)
               return (
-                <div key={page.url} className="rounded-[18px] border border-slate-200/80 bg-white/86 p-4">
-                  <div className="flex items-start justify-between gap-4">
+                <div key={page.url} className="min-w-0 rounded-[18px] border border-slate-200/80 bg-white/86 p-4">
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_128px] items-start gap-4">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-sm">
                         <span className={isWeb ? 'text-blue-600' : 'text-violet-600'}>{isWeb ? '网页' : 'AI 应用'}</span>
                         <span className="text-slate-300">/</span>
-                        <span className="text-slate-500">{isWeb ? page.browser : '仅统计使用时长'}</span>
+                        <span className="truncate text-slate-500">{isWeb ? page.browser : '占总使用时间'}</span>
                       </div>
                       <div className="mt-1 truncate text-lg font-semibold text-slate-900">{displayTitle}</div>
                       <div className="mt-1 truncate text-sm text-slate-500">{displayDomain}</div>
                     </div>
-                    <div className="shrink-0 text-right">
+                    <div className="rounded-[14px] bg-slate-50 px-3 py-2 text-right">
                       <div className="text-2xl font-semibold text-slate-900">{usagePercent}%</div>
-                      <div className="mt-1 text-xs text-slate-500">占总使用时间</div>
+                      <div className="mt-1 text-xs text-slate-500">总占比</div>
                     </div>
                   </div>
-                  <ProgressBar className="mt-3" value={usagePercent} accentClassName={isWeb ? 'bg-blue-500' : 'bg-violet-500'} />
+                  <ProgressBar className="mt-3 w-full" value={usagePercent} accentClassName={isWeb ? 'bg-blue-500' : 'bg-violet-500'} />
                   <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-400">
-                    <span className="truncate">{isWeb ? page.url : '不保存 AI 对话标题或具体链接'}</span>
+                    <span className="min-w-0 truncate">{isWeb ? page.url : '不保存 AI 对话标题或具体链接'}</span>
                     <span className="shrink-0 font-medium text-slate-500">总使用 {usagePercent}%</span>
                   </div>
                 </div>
