@@ -19,6 +19,8 @@ const rendererHtml = join(__dirname, '../renderer/index.html')
 const preloadPath = join(__dirname, '../preload/index.mjs')
 const AUTO_HIDE_THRESHOLD = 40
 const AUTO_HIDE_STRIP = 22
+const AUTO_HIDE_COLLAPSE_DELAY_MS = 420
+const AUTO_HIDE_POINTER_MARGIN = 8
 const PROGRAMMATIC_BOUNDS_SUPPRESS_MS = 180
 const MAIN_WINDOW_DEFAULT_WIDTH = 1180
 const MAIN_WINDOW_DEFAULT_HEIGHT = 760
@@ -244,12 +246,14 @@ export class WindowManager {
     }
 
     if (hovering) {
+      clearTimeout(runtime.hideTimer)
+      runtime.hideTimer = undefined
       if (runtime.hidden && runtime.expandedBounds) {
         runtime.hidden = false
         runtime.collapsedEdge = undefined
         const expandedBounds = constrainBoundsToDisplay(runtime.expandedBounds)
-        this.setOverlayBounds(key, expandedBounds)
         this.restoreOverlayWindowConstraints(window, key, data)
+        this.setOverlayBounds(key, expandedBounds)
         runtime.expandedBounds = undefined
       }
       return
@@ -265,21 +269,7 @@ export class WindowManager {
       return
     }
 
-    const display = screen.getDisplayMatching(window.getBounds()).workArea
-    const bounds = constrainBoundsToDisplay(window.getBounds(), display)
-    const edge = getCollapsibleEdge(bounds, display, AUTO_HIDE_THRESHOLD)
-    if (!edge) {
-      return
-    }
-
-    runtime.expandedBounds = bounds
-    runtime.collapsedEdge = edge
-    runtime.hidden = true
-
-    window.setMinimumSize(1, 1)
-    window.setResizable(false)
-    window.setMovable(false)
-    this.setOverlayBounds(key, getCollapsedOverlayBounds(bounds, display, edge), false)
+    this.scheduleOverlayCollapse(key, data)
   }
 
   getMainWindow(): BrowserWindow | null {
@@ -375,13 +365,12 @@ export class WindowManager {
 
     if (runtime.hidden) {
       runtime.expandedBounds ??= configuredBounds
-      window.setMinimumSize(1, 1)
       window.setResizable(false)
       window.setMovable(false)
 
       if (runtime.collapsedEdge) {
         const display = screen.getDisplayMatching(runtime.expandedBounds).workArea
-        const collapsedBounds = getCollapsedOverlayBounds(runtime.expandedBounds, display, runtime.collapsedEdge)
+        const collapsedBounds = getHiddenOverlayBounds(runtime.expandedBounds, display, runtime.collapsedEdge)
         if (!sameBounds(window.getBounds(), collapsedBounds)) {
           this.setOverlayBounds(key, collapsedBounds, false)
         }
@@ -399,6 +388,51 @@ export class WindowManager {
     window.setMinimumSize(getOverlayMinWidth(key), getOverlayMinHeight(key))
     window.setResizable(isOverlayUserResizable(key))
     window.setMovable(isOverlayUserMovable() && !this.isOverlayDragLocked(key, data))
+  }
+
+  private scheduleOverlayCollapse(key: WidgetKey, data: AppData): void {
+    const runtime = this.overlayState.get(key)
+    if (!runtime) {
+      return
+    }
+
+    clearTimeout(runtime.hideTimer)
+    runtime.hideTimer = setTimeout(() => {
+      runtime.hideTimer = undefined
+      const window = this.overlayWindows.get(key)
+      const currentRuntime = this.overlayState.get(key)
+      const currentData = this.getData?.() ?? data
+      if (!window || !currentRuntime || currentRuntime.hidden) {
+        return
+      }
+
+      const config = currentData.desktopSettings.widgets[key]
+      const shouldAutoHide = config.autoHide || currentData.desktopSettings.autoHide
+      if (!shouldAutoHide) {
+        return
+      }
+
+      const currentBounds = window.getBounds()
+      const cursor = screen.getCursorScreenPoint()
+      if (isPointInsideBounds(cursor, currentBounds, AUTO_HIDE_POINTER_MARGIN)) {
+        return
+      }
+
+      const display = screen.getDisplayMatching(currentBounds).workArea
+      const bounds = constrainBoundsToDisplay(currentBounds, display)
+      const edge = getCollapsibleEdge(bounds, display, AUTO_HIDE_THRESHOLD)
+      if (!edge) {
+        return
+      }
+
+      currentRuntime.expandedBounds = bounds
+      currentRuntime.collapsedEdge = edge
+      currentRuntime.hidden = true
+
+      window.setResizable(false)
+      window.setMovable(false)
+      this.setOverlayBounds(key, getHiddenOverlayBounds(bounds, display, edge), false)
+    }, AUTO_HIDE_COLLAPSE_DELAY_MS)
   }
 
   private withConfiguredOverlaySize(key: WidgetKey, bounds: Rectangle): Rectangle {
@@ -580,22 +614,29 @@ function getCollapsibleEdge(bounds: Rectangle, display: Rectangle, threshold: nu
   return undefined
 }
 
-function getCollapsedOverlayBounds(bounds: Rectangle, display: Rectangle, edge: 'left' | 'right' | 'top' | 'bottom'): Rectangle {
+function getHiddenOverlayBounds(bounds: Rectangle, display: Rectangle, edge: 'left' | 'right' | 'top' | 'bottom'): Rectangle {
   const width = Math.min(Math.max(1, Math.round(bounds.width)), display.width)
   const height = Math.min(Math.max(1, Math.round(bounds.height)), display.height)
-  const stripWidth = Math.min(AUTO_HIDE_STRIP, width, display.width)
-  const stripHeight = Math.min(AUTO_HIDE_STRIP, height, display.height)
   const x = clamp(Math.round(bounds.x), display.x, display.x + display.width - width)
   const y = clamp(Math.round(bounds.y), display.y, display.y + display.height - height)
 
   if (edge === 'left') {
-    return { x: display.x, y, width: stripWidth, height }
+    return { x: display.x - width + AUTO_HIDE_STRIP, y, width, height }
   }
   if (edge === 'right') {
-    return { x: display.x + display.width - stripWidth, y, width: stripWidth, height }
+    return { x: display.x + display.width - AUTO_HIDE_STRIP, y, width, height }
   }
   if (edge === 'top') {
-    return { x, y: display.y, width, height: stripHeight }
+    return { x, y: display.y - height + AUTO_HIDE_STRIP, width, height }
   }
-  return { x, y: display.y + display.height - stripHeight, width, height: stripHeight }
+  return { x, y: display.y + display.height - AUTO_HIDE_STRIP, width, height }
+}
+
+function isPointInsideBounds(point: { x: number; y: number }, bounds: Rectangle, margin = 0): boolean {
+  return (
+    point.x >= bounds.x - margin &&
+    point.x <= bounds.x + bounds.width + margin &&
+    point.y >= bounds.y - margin &&
+    point.y <= bounds.y + bounds.height + margin
+  )
 }
