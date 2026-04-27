@@ -1,0 +1,43 @@
+/**
+ * @see https://electron-vite.github.io/build/electron-builder.html
+ * @see https://www.electron.build/configuration.html
+ */
+{
+  appId: "com.timeable.app",
+  productName: "Timetable",
+  asar: true,
+  npmRebuild: false,
+  compression: "normal",
+  directories: {
+    output: "release/${version}",
+    buildResources: "buildResources"
+  },
+  files: [
+    "out/**/*",
+    "package.json"
+  ],
+  extraMetadata: {
+    main: "out/main/index.js"
+  },
+  win: {
+    executableName: "Timetable",
+    signAndEditExecutable: false
+  },
+  nsis: {
+    // Use a compact local script so the installer build does not need to
+    // pre-run a generated installer, which is blocked in some Windows shells.
+    script: "buildResources/installer.nsi",
+    artifactName: "${productName}-${version}-${arch}-setup.${ext}",
+    oneClick: false,
+    perMachine: false,
+    allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: "always",
+    createStartMenuShortcut: true,
+    shortcutName: "Timeable",
+    deleteAppDataOnUninstall: false,
+    runAfterFinish: true
+  },
+  portable: {
+    artifactName: "${productName}-${version}-${arch}-portable.${ext}"
+  }
+}
