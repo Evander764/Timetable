@@ -3,7 +3,7 @@
  * @see https://www.electron.build/configuration.html
  */
 {
-  appId: "com.timeable.app",
+  appId: "com.timetable.app",
   productName: "Timetable",
   asar: true,
   npmRebuild: false,
@@ -33,7 +33,7 @@
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: "always",
     createStartMenuShortcut: true,
-    shortcutName: "Timeable",
+    shortcutName: "Timetable",
     deleteAppDataOnUninstall: false,
     runAfterFinish: true
   },
