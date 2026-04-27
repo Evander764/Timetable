@@ -85,14 +85,14 @@ textarea {
 }
 
 .glass-card {
-  border: 1px solid rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.36);
   border-radius: 18px;
   background:
-    linear-gradient(180deg, rgba(248, 252, 255, 0.78), rgba(234, 244, 255, 0.58));
+    linear-gradient(180deg, rgba(248, 252, 255, 0.96), rgba(234, 244, 255, 0.9));
   box-shadow:
-    0 14px 34px rgba(19, 35, 63, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.64);
-  backdrop-filter: blur(22px);
+    0 14px 34px rgba(19, 35, 63, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(18px);
 }
 
 .sidebar-link {

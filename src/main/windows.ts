@@ -3,6 +3,7 @@ import { app, BrowserWindow, Menu, nativeImage, screen, shell, Tray } from 'elec
 import type { Rectangle } from 'electron/main'
 import type { AppData, WidgetKey } from '@shared/types/app'
 import type { OverlayWidgetUpdatePayload, WindowStatePayload } from '@shared/ipc'
+import { getEffectiveOverlayOpacity } from '@shared/utils/widgets'
 
 type OverlayRuntimeState = {
   hidden: boolean
@@ -361,7 +362,7 @@ export class WindowManager {
     })
     window.setIgnoreMouseEvents(false)
     window.setAlwaysOnTop(data.desktopSettings.overlayMode === 'floating' && data.desktopSettings.alwaysOnTop, 'screen-saver')
-    window.setOpacity(clampOpacity(config.opacity * data.desktopSettings.opacity))
+    window.setOpacity(getEffectiveOverlayOpacity(config.opacity, data.desktopSettings.opacity))
 
     if (runtime.hidden) {
       runtime.expandedBounds ??= configuredBounds
@@ -535,10 +536,6 @@ export class WindowManager {
     const config = data.desktopSettings.widgets[key]
     return data.desktopSettings.dragLocked || Boolean(config.dragLocked)
   }
-}
-
-function clampOpacity(value: number): number {
-  return Math.max(0.2, Math.min(1, value))
 }
 
 function isOverlayUserResizable(key: WidgetKey): boolean {
