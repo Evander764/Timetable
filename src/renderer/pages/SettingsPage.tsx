@@ -24,20 +24,32 @@ export function SettingsPage() {
     <div className="space-y-6">
       <PageHeader title="背景与设置" subtitle="集中管理桌面面板、卡片显示、背景图片和本地持久化状态。" />
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid balanced-option-grid gap-4">
         <SettingTile
           title="启用桌面展示"
           description="控制桌面挂件总开关。"
           control={<Toggle checked={data.desktopSettings.overlayEnabled} onCheckedChange={(checked) => void updateSettings({ desktopSettings: { overlayEnabled: checked } })} />}
         />
         <SettingTile
-          title="自动保存"
-          description="每次修改后 500ms debounce 写入本地 JSON。"
-          control={<Toggle checked={data.appSettings.autoSave} onCheckedChange={(checked) => void updateSettings({ appSettings: { autoSave: checked } }, '自动保存设置已更新。')} />}
+          title="仅托盘退出"
+          description="开启后，只有托盘菜单的“彻底退出”会真正关闭程序。"
+          control={<Toggle checked={data.appSettings.trayOnlyQuitEnabled} onCheckedChange={(checked) => void updateSettings({ appSettings: { trayOnlyQuitEnabled: checked } }, checked ? '已开启仅托盘退出。' : '已关闭仅托盘退出。')} />}
+        />
+        <SettingTile
+          title="关闭按钮隐藏"
+          description={data.appSettings.trayOnlyQuitEnabled ? '仅托盘退出开启时，此项由托盘退出保护接管。' : data.appSettings.closeButtonAction === 'hide' ? '点击右上角关闭时隐藏到系统托盘。' : '点击右上角关闭时直接退出程序。'}
+          control={
+            <Toggle
+              checked={data.appSettings.trayOnlyQuitEnabled || data.appSettings.closeButtonAction === 'hide'}
+              disabled={data.appSettings.trayOnlyQuitEnabled}
+              className={data.appSettings.trayOnlyQuitEnabled ? 'cursor-not-allowed opacity-60' : undefined}
+              onCheckedChange={(checked) => void updateSettings({ appSettings: { closeButtonAction: checked ? 'hide' : 'exit' } }, checked ? '关闭按钮将隐藏到托盘。' : '关闭按钮将直接退出程序。')}
+            />
+          }
         />
         <SettingTile
           title="自动贴边隐藏"
-          description="桌面卡片靠边时自动收起。"
+          description="桌面卡片靠近屏幕边缘时自动收起。"
           control={<Toggle checked={data.desktopSettings.autoHide} onCheckedChange={(checked) => void updateSettings({ desktopSettings: { autoHide: checked } })} />}
         />
       </div>
@@ -45,7 +57,7 @@ export function SettingsPage() {
       <div className="grid grid-cols-[1.2fr_1fr] gap-4">
         <Card>
           <div className="text-[30px] font-semibold tracking-tight text-slate-900">背景图片</div>
-          <div className="mt-5 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/88">
+          <div className="mt-5 overflow-hidden rounded-[18px] border border-slate-200/80 bg-white/88">
             <img src={backgroundPreview} alt="背景预览" className="h-[320px] w-full object-cover" />
           </div>
           <div className="mt-4 grid gap-3 text-sm text-slate-600">
@@ -65,13 +77,10 @@ export function SettingsPage() {
 
         <div className="space-y-4">
           <Card>
-            <div className="text-[30px] font-semibold tracking-tight text-slate-900">桌面展示面板设置</div>
+            <div className="text-[30px] font-semibold tracking-tight text-slate-900">桌面展示设置</div>
             <div className="mt-5 space-y-5">
-              <SliderRow label="不透明度" value={Math.round(data.desktopSettings.opacity * 100)} onChange={(value) => void updateSettings({ desktopSettings: { opacity: value / 100 } })} />
-              <div className="rounded-[20px] border border-blue-100 bg-blue-50/70 px-4 py-4 text-sm leading-6 text-blue-700">
-                每张桌面卡片的尺寸已拆分为独立调节，请在“桌面面板”页分别设置。
-              </div>
-              <ToggleRow label="始终显示" checked={data.desktopSettings.alwaysOnTop} onChange={(checked) => void updateSettings({ desktopSettings: { alwaysOnTop: checked } })} />
+              <SliderRow label="整体不透明度" value={Math.round(data.desktopSettings.opacity * 100)} onChange={(value) => void updateSettings({ desktopSettings: { opacity: value / 100 } })} />
+              <ToggleRow label="始终置顶" checked={data.desktopSettings.alwaysOnTop} onChange={(checked) => void updateSettings({ desktopSettings: { alwaysOnTop: checked } })} />
               <ToggleRow label="拖拽锁定" checked={data.desktopSettings.dragLocked} onChange={(checked) => void updateSettings({ desktopSettings: { dragLocked: checked } })} />
             </div>
           </Card>
@@ -82,7 +91,7 @@ export function SettingsPage() {
               <InfoRow label="数据路径" value={data.appSettings.dataPath} />
               <InfoRow label="JSON 自动保存" value={data.appSettings.autoSave ? '已开启' : '已关闭'} />
               <InfoRow label="上次保存时间" value={data.appSettings.lastSavedAt ? new Date(data.appSettings.lastSavedAt).toLocaleString() : '尚未保存'} />
-              <InfoRow label="上次导出时间" value={data.appSettings.lastExportedAt ? new Date(data.appSettings.lastExportedAt).toLocaleString() : '尚未导出'} />
+              <InfoRow label="上次备份时间" value={data.appSettings.lastBackupAt ? new Date(data.appSettings.lastBackupAt).toLocaleString() : '尚未备份'} />
             </div>
           </Card>
         </div>
@@ -95,7 +104,7 @@ function SettingTile({ title, description, control }: { title: string; descripti
   return (
     <Card>
       <div className="flex items-center justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <div className="text-2xl font-semibold tracking-tight text-slate-900">{title}</div>
           <div className="mt-2 text-sm leading-6 text-slate-500">{description}</div>
         </div>
@@ -107,7 +116,7 @@ function SettingTile({ title, description, control }: { title: string; descripti
 
 function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
-    <div className="flex items-center justify-between rounded-[20px] border border-slate-200/80 bg-white/88 px-4 py-4">
+    <div className="flex items-center justify-between rounded-[14px] border border-slate-200/80 bg-white/88 px-4 py-4">
       <div className="text-lg font-semibold text-slate-900">{label}</div>
       <Toggle checked={checked} onCheckedChange={onChange} />
     </div>
@@ -128,7 +137,7 @@ function SliderRow({
   max?: number
 }) {
   return (
-    <div className="rounded-[20px] border border-slate-200/80 bg-white/88 px-4 py-4">
+    <div className="rounded-[14px] border border-slate-200/80 bg-white/88 px-4 py-4">
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold text-slate-900">{label}</div>
         <div className="text-2xl font-semibold text-slate-900">{value}%</div>
@@ -140,9 +149,9 @@ function SliderRow({
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between rounded-[18px] border border-slate-200/80 bg-white/88 px-4 py-3 text-sm text-slate-600">
-      <span>{label}</span>
-      <span className="max-w-[60%] truncate text-right font-medium text-slate-900">{value}</span>
+    <div className="flex items-center justify-between gap-4 rounded-[14px] border border-slate-200/80 bg-white/88 px-4 py-3 text-sm text-slate-600">
+      <span className="shrink-0">{label}</span>
+      <span className="min-w-0 truncate text-right font-medium text-slate-900">{value}</span>
     </div>
   )
 }

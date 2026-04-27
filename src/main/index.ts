@@ -1,7 +1,8 @@
 import { join } from 'node:path'
 import { app } from 'electron'
 import type { OverlayWidgetUpdatePayload } from '@shared/ipc'
-import { checkForGithubUpdate } from './githubUpdate'
+import { BrowserUsageTracker } from './browserUsageTracker'
+import { promptForGithubUpdate } from './githubUpdate'
 import { registerIpcHandlers } from './ipc'
 import { AppStorage } from './storage'
 import { getLaunchAtStartup } from './startup'
@@ -9,12 +10,9 @@ import { WindowManager } from './windows'
 
 let storage: AppStorage
 let windows: WindowManager
+let browserUsageTracker: BrowserUsageTracker
 
 async function bootstrap(): Promise<void> {
-  if (await checkForGithubUpdate()) {
-    return
-  }
-
   const dataPath = join(app.getPath('userData'), 'app-data.json')
   storage = new AppStorage(dataPath)
   await storage.initialize()
@@ -27,6 +25,12 @@ async function bootstrap(): Promise<void> {
   windows = new WindowManager(async (payload: OverlayWidgetUpdatePayload) => {
     const next = await storage.updateWidget(payload)
     windows.broadcastData(next)
+  }, () => storage.getData())
+
+  browserUsageTracker = new BrowserUsageTracker({
+    getData: () => storage.getData(),
+    recordUsage: (sample, durationSeconds) => storage.recordBrowserUsage(sample, durationSeconds),
+    onDataChanged: (next) => windows.broadcastData(next),
   })
 
   registerIpcHandlers({
@@ -38,6 +42,8 @@ async function bootstrap(): Promise<void> {
   await windows.createMainWindow()
   await windows.syncOverlayWindows(storage.getData())
   windows.broadcastData(storage.getData())
+  browserUsageTracker.start()
+  void promptForGithubUpdate(storage, windows.getMainWindow()).then(() => windows.broadcastData(storage.getData()))
 }
 
 app.whenReady().then(async () => {
@@ -52,6 +58,7 @@ app.whenReady().then(async () => {
 })
 
 app.on('before-quit', async () => {
+  browserUsageTracker?.stop()
   await storage?.flush()
 })
 

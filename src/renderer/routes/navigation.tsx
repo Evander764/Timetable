@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   CalendarDays,
   CheckSquare,
+  Clock3,
   Database,
   Home,
   LayoutPanelTop,
@@ -20,6 +21,7 @@ export type NavItem = {
 
 export const navItems: NavItem[] = [
   { path: '/overview', label: '总览', icon: Home },
+  { path: '/browser-usage', label: '时间统计', icon: Clock3 },
   { path: '/desktop-panel', label: '桌面面板', icon: LayoutPanelTop },
   { path: '/schedule', label: '课程表', icon: CalendarDays },
   { path: '/daily-tasks', label: '每日任务', icon: CheckSquare },

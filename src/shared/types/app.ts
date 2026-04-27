@@ -5,6 +5,9 @@ export type GoalStatus = 'active' | 'paused' | 'completed'
 export type GoalStageStatus = 'completed' | 'active' | 'pending'
 export type MemoStatus = 'active' | 'ended'
 export type OverlayMode = 'floating' | 'desktop'
+export type CloseButtonAction = 'exit' | 'hide'
+export type UsageEntryType = 'web' | 'ai'
+export type PrincipleDisplayMode = 'embedded' | 'standalone'
 
 export type WidgetPosition =
   | 'top-left'
@@ -32,6 +35,41 @@ export type Course = {
   weekEnd?: number
   color?: string
   note?: string
+}
+
+export type TimetableSlot = {
+  id: string
+  section: string
+  label: string
+  startTime: string
+  endTime: string
+}
+
+export type BrowserUsagePage = {
+  url: string
+  title: string
+  domain: string
+  browser: string
+  usageType: UsageEntryType
+  processName?: string
+  totalSeconds: number
+  firstSeenAt: string
+  lastSeenAt: string
+}
+
+export type BrowserUsageDay = {
+  date: string
+  totalSeconds: number
+  pages: Record<string, BrowserUsagePage>
+}
+
+export type BrowserPageSample = {
+  url: string
+  title: string
+  browser: string
+  usageType?: UsageEntryType
+  processName?: string
+  observedAt: string
 }
 
 export type DailyTask = {
@@ -97,12 +135,24 @@ export type WidgetConfig = {
   opacity: number
   minimized?: boolean
   autoHide?: boolean
+  dragLocked?: boolean
+}
+
+export type PrincipleCardEntry = {
+  id: string
+  content: string
+  author?: string
 }
 
 export type PrincipleCard = {
   enabled: boolean
   content: string
   author?: string
+  cards?: PrincipleCardEntry[]
+  activeCardId?: string
+  autoRotate?: boolean
+  rotateIntervalSeconds?: number
+  displayMode?: PrincipleDisplayMode
   position: WidgetPosition
   opacity: number
   autoHide: boolean
@@ -138,8 +188,22 @@ export type DesktopSettings = {
 export type AppSettings = {
   autoSave: boolean
   launchAtStartup: boolean
+  closeButtonAction: CloseButtonAction
+  trayOnlyQuitEnabled: boolean
+  browserTrackingEnabled: boolean
+  browserTrackingIntervalSeconds: number
   dataPath: string
   termStartDate: string
+  termWeekCount: number
+  timetableSlots: TimetableSlot[]
+  desktopLayoutVersion?: number
+  opacityVersion?: number
+  autoBackupEnabled: boolean
+  autoCheckForUpdates: boolean
+  lastBackupAt?: string
+  lastBackupPath?: string
+  lastAutoBackupDate?: string
+  lastUpdateCheckAt?: string
   lastSavedAt?: string
   lastExportedAt?: string
 }
@@ -153,6 +217,7 @@ export type AppData = {
   countdownCard: CountdownCard
   desktopSettings: DesktopSettings
   appSettings: AppSettings
+  browserUsage: Record<string, BrowserUsageDay>
 }
 
 export type DashboardStats = {

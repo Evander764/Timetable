@@ -1,6 +1,14 @@
 import { create } from 'zustand'
 import type { AppData } from '@shared/types/app'
-import type { DataAction, OverlaySnapPositionPayload, OverlayWidgetUpdatePayload, SettingsUpdatePayload, WindowStatePayload } from '@shared/ipc'
+import type {
+  BackupInfo,
+  DataAction,
+  GithubUpdateInfo,
+  OverlaySnapPositionPayload,
+  OverlayWidgetUpdatePayload,
+  SettingsUpdatePayload,
+  WindowStatePayload,
+} from '@shared/ipc'
 import { createId } from '@shared/utils/id'
 
 export type Toast = {
@@ -14,6 +22,8 @@ type AppStore = {
   loaded: boolean
   isMaximized: boolean
   toasts: Toast[]
+  backups: BackupInfo[]
+  updateInfo: GithubUpdateInfo | null
   setData: (data: AppData) => void
   setLoaded: (loaded: boolean) => void
   setWindowState: (payload: WindowStatePayload) => void
@@ -27,6 +37,13 @@ type AppStore = {
   setStartup: (enabled: boolean) => Promise<void>
   selectBackground: () => Promise<void>
   exportData: () => Promise<void>
+  createBackup: () => Promise<void>
+  loadBackups: () => Promise<void>
+  restoreBackup: (filePath?: string) => Promise<void>
+  openBackupDir: () => Promise<void>
+  checkForUpdate: (silent?: boolean) => Promise<void>
+  installUpdate: () => Promise<void>
+  saveBrowserUsageDay: (date: string) => Promise<void>
 }
 
 function scheduleToastRemoval(id: string, dismissToast: (toastId: string) => void): void {
@@ -38,6 +55,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   loaded: false,
   isMaximized: false,
   toasts: [],
+  backups: [],
+  updateInfo: null,
   setData: (data) => set({ data }),
   setLoaded: (loaded) => set({ loaded }),
   setWindowState: (payload) => set({ isMaximized: payload.isMaximized }),
@@ -151,6 +170,92 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } catch (error) {
       console.error(error)
       get().pushToast('导出数据失败。', 'error')
+    }
+  },
+  createBackup: async () => {
+    try {
+      const backup = await window.timeable.createBackup()
+      const data = await window.timeable.loadData()
+      set((state) => ({
+        data,
+        backups: [backup, ...state.backups.filter((item) => item.filePath !== backup.filePath)],
+      }))
+      get().pushToast(`备份已创建：${backup.name}`)
+    } catch (error) {
+      console.error(error)
+      get().pushToast('创建备份失败。', 'error')
+    }
+  },
+  loadBackups: async () => {
+    try {
+      const backups = await window.timeable.listBackups()
+      set({ backups })
+    } catch (error) {
+      console.error(error)
+      get().pushToast('读取备份列表失败。', 'error')
+    }
+  },
+  restoreBackup: async (filePath) => {
+    try {
+      const result = await window.timeable.restoreBackup(filePath)
+      if (result.canceled) {
+        return
+      }
+      if (result.data) {
+        set({ data: result.data })
+      }
+      await get().loadBackups()
+      get().pushToast('数据已从备份恢复。')
+    } catch (error) {
+      console.error(error)
+      get().pushToast('恢复备份失败。', 'error')
+    }
+  },
+  openBackupDir: async () => {
+    try {
+      await window.timeable.openBackupDir()
+    } catch (error) {
+      console.error(error)
+      get().pushToast('打开备份目录失败。', 'error')
+    }
+  },
+  checkForUpdate: async (silent = false) => {
+    try {
+      const updateInfo = await window.timeable.checkForUpdate()
+      set({ updateInfo })
+      if (updateInfo.available && !updateInfo.error) {
+        get().pushToast(`发现新版本 v${updateInfo.latestVersion}。`, 'info')
+      } else if (!silent) {
+        get().pushToast(updateInfo.error ? `检查更新失败：${updateInfo.error}` : '当前已经是最新版本。', updateInfo.error ? 'error' : 'success')
+      }
+    } catch (error) {
+      console.error(error)
+      if (!silent) {
+        get().pushToast('检查更新失败。', 'error')
+      }
+    }
+  },
+  installUpdate: async () => {
+    try {
+      const result = await window.timeable.installUpdate()
+      if (!result.started) {
+        get().pushToast(result.error ?? '没有可安装的新版本。', 'error')
+      }
+    } catch (error) {
+      console.error(error)
+      get().pushToast('安装更新失败。', 'error')
+    }
+  },
+  saveBrowserUsageDay: async (date) => {
+    try {
+      const result = await window.timeable.saveBrowserUsageDay(date)
+      if (result.canceled) {
+        return
+      }
+      get().pushToast(`时间统计已保存到 ${result.filePath ?? '目标路径'}。`)
+    } catch (error) {
+      console.error(error)
+      get().pushToast('保存时间统计失败。', 'error')
     }
   },
 }))

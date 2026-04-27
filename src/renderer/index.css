@@ -146,6 +146,11 @@ textarea {
   resize: vertical;
 }
 
+.balanced-option-grid,
+.balanced-choice-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
 .overlay-root {
   height: 100%;
   padding: 10px;
@@ -199,4 +204,24 @@ textarea {
 
 .app-shell main {
   padding: 18px;
+}
+
+.principle-page-stage {
+  perspective: 900px;
+}
+
+.principle-page-turn {
+  animation: principle-page-turn 420ms ease both;
+  transform-origin: center;
+}
+
+@keyframes principle-page-turn {
+  0% {
+    opacity: 0;
+    transform: translateX(calc(var(--turn-direction, 1) * 18px)) rotateY(calc(var(--turn-direction, 1) * -18deg));
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) rotateY(0);
+  }
 }

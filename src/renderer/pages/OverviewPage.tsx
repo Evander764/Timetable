@@ -21,8 +21,8 @@ export function OverviewPage() {
   }
 
   const today = new Date()
-  const todayCourses = getCoursesForDate(data.courses, today, data.appSettings.termStartDate)
-  const nextCourse = getNextCourse(data.courses, today, data.appSettings.termStartDate)
+  const todayCourses = getCoursesForDate(data.courses, today, data.appSettings.termStartDate, data.appSettings.termWeekCount)
+  const nextCourse = getNextCourse(data.courses, today, data.appSettings.termStartDate, data.appSettings.termWeekCount)
   const todayTasks = getTasksForDate(data.dailyTasks, today)
   const progress = getDayProgressBreakdown(data.dailyTasks, today)
   const completionRate = getCompletionRate(data.dailyTasks, today)

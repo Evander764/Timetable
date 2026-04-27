@@ -1,11 +1,34 @@
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { app } from 'electron'
+import { app, dialog, type BrowserWindow, type MessageBoxOptions } from 'electron'
+import type { GithubUpdateInfo, GithubUpdateInstallResult } from '@shared/ipc'
+import type { AppStorage } from './storage'
 
 const GITHUB_UPDATE_REPO = 'Evander764/Timetable'
 const GITHUB_UPDATE_ENDPOINT = `https://api.github.com/repos/${GITHUB_UPDATE_REPO}/releases/latest`
 const GITHUB_UPDATE_USER_AGENT = 'Timetable-Updater'
+const SHA256_ASSET_NAME = 'SHA256SUMS.txt'
+
+type GithubReleaseAsset = {
+  name?: string
+  size?: number
+  browser_download_url?: string
+}
+
+type GithubRelease = {
+  tag_name?: string
+  name?: string
+  published_at?: string
+  body?: string
+  assets?: GithubReleaseAsset[]
+}
+
+type GithubUpdateCandidate = GithubUpdateInfo & {
+  asarDownloadUrl?: string
+  shaDownloadUrl?: string
+}
 
 function parseVersionParts(version: string): number[] {
   return String(version ?? '')
@@ -74,6 +97,177 @@ function formatUpdateTimestamp(): string {
   return new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)
 }
 
+function toPublicUpdateInfo(candidate: GithubUpdateCandidate): GithubUpdateInfo {
+  return {
+    available: candidate.available,
+    currentVersion: candidate.currentVersion,
+    latestVersion: candidate.latestVersion,
+    releaseName: candidate.releaseName,
+    publishedAt: candidate.publishedAt,
+    body: candidate.body,
+    assetName: candidate.assetName,
+    assetSize: candidate.assetSize,
+    error: candidate.error,
+  }
+}
+
+async function getGithubUpdateCandidate(): Promise<GithubUpdateCandidate> {
+  const currentVersion = app.getVersion()
+  if (!app.isPackaged) {
+    return { available: false, currentVersion }
+  }
+
+  try {
+    const releaseResponse = await fetchWithTimeout(GITHUB_UPDATE_ENDPOINT, 8_000)
+    const release = await releaseResponse.json() as GithubRelease
+    const latestVersion = String(release?.tag_name ?? '').replace(/^v/i, '')
+
+    if (!latestVersion || !isNewerVersion(latestVersion, currentVersion)) {
+      return {
+        available: false,
+        currentVersion,
+        latestVersion: latestVersion || undefined,
+        releaseName: release.name,
+        publishedAt: release.published_at,
+        body: release.body,
+      }
+    }
+
+    const assets = Array.isArray(release.assets) ? release.assets : []
+    const asarAsset = assets.find((asset) => asset?.name === 'app.asar')
+      ?? assets.find((asset) => String(asset?.name ?? '').toLowerCase().endsWith('.asar'))
+    const shaAsset = assets.find((asset) => asset?.name === SHA256_ASSET_NAME)
+
+    if (!asarAsset?.browser_download_url) {
+      return {
+        available: true,
+        currentVersion,
+        latestVersion,
+        releaseName: release.name,
+        publishedAt: release.published_at,
+        body: release.body,
+        error: 'GitHub release 中没有 app.asar 资源。',
+      }
+    }
+
+    return {
+      available: true,
+      currentVersion,
+      latestVersion,
+      releaseName: release.name,
+      publishedAt: release.published_at,
+      body: release.body,
+      assetName: asarAsset.name,
+      assetSize: asarAsset.size,
+      asarDownloadUrl: asarAsset.browser_download_url,
+      shaDownloadUrl: shaAsset?.browser_download_url,
+    }
+  } catch (error) {
+    return {
+      available: false,
+      currentVersion,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+export async function checkForGithubUpdate(): Promise<GithubUpdateInfo> {
+  return toPublicUpdateInfo(await getGithubUpdateCandidate())
+}
+
+export async function promptForGithubUpdate(storage: AppStorage, window: BrowserWindow | null): Promise<void> {
+  const data = storage.getData()
+  if (!data.appSettings.autoCheckForUpdates) {
+    return
+  }
+
+  await storage.updateSettings({ appSettings: { lastUpdateCheckAt: new Date().toISOString() } })
+  const update = await getGithubUpdateCandidate()
+  if (!update.available || update.error) {
+    return
+  }
+
+  const sizeLabel = update.assetSize ? `\n下载大小：${Math.round(update.assetSize / 1024 / 1024)} MB` : ''
+  const body = update.body ? `\n\n${update.body.slice(0, 900)}` : ''
+  const messageBoxOptions: MessageBoxOptions = {
+    type: 'info',
+    buttons: ['立即更新', '稍后'],
+    defaultId: 0,
+    cancelId: 1,
+    title: '发现 Timetable 新版本',
+    message: `发现新版本 v${update.latestVersion}`,
+    detail: `当前版本：v${update.currentVersion}${sizeLabel}${body}`,
+  }
+  const result = window ? await dialog.showMessageBox(window, messageBoxOptions) : await dialog.showMessageBox(messageBoxOptions)
+
+  if (result.response !== 0) {
+    return
+  }
+
+  await installGithubUpdate(storage, update)
+}
+
+export async function installGithubUpdate(storage: AppStorage, candidate?: GithubUpdateCandidate): Promise<GithubUpdateInstallResult> {
+  const update = candidate ?? await getGithubUpdateCandidate()
+  if (!update.available) {
+    return { started: false, error: '当前已经是最新版本。' }
+  }
+  if (update.error) {
+    return { started: false, error: update.error }
+  }
+  if (!update.asarDownloadUrl || !update.latestVersion) {
+    return { started: false, error: '新版资源不完整。' }
+  }
+
+  try {
+    await storage.createBackup('pre-update', true)
+
+    const updatesDir = join(app.getPath('userData'), 'updates')
+    await mkdir(updatesDir, { recursive: true })
+
+    const downloadedAsarPath = join(updatesDir, `app-${update.latestVersion}.asar`)
+    const assetResponse = await fetchWithTimeout(update.asarDownloadUrl, 120_000)
+    const assetBuffer = Buffer.from(await assetResponse.arrayBuffer())
+    await verifySha256(update, assetBuffer)
+    await writeFile(downloadedAsarPath, assetBuffer)
+
+    return { started: await installDownloadedAsar(downloadedAsarPath, update.latestVersion) }
+  } catch (error) {
+    return {
+      started: false,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+async function verifySha256(update: GithubUpdateCandidate, buffer: Buffer): Promise<void> {
+  if (!update.shaDownloadUrl || !update.assetName) {
+    throw new Error('新版缺少 SHA256SUMS.txt，已取消安装。')
+  }
+
+  const shaResponse = await fetchWithTimeout(update.shaDownloadUrl, 20_000)
+  const text = await shaResponse.text()
+  const expected = parseSha256(text, update.assetName)
+  if (!expected) {
+    throw new Error(`SHA256SUMS.txt 中没有 ${update.assetName}。`)
+  }
+
+  const actual = createHash('sha256').update(buffer).digest('hex').toLowerCase()
+  if (actual !== expected.toLowerCase()) {
+    throw new Error('新版资源校验失败，已取消安装。')
+  }
+}
+
+function parseSha256(text: string, assetName: string): string | null {
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.trim().match(/^([a-fA-F0-9]{64})\s+\*?(.+)$/)
+    if (match && match[2].trim() === assetName) {
+      return match[1]
+    }
+  }
+  return null
+}
+
 async function installDownloadedAsar(downloadedAsarPath: string, latestVersion: string): Promise<boolean> {
   const targetAsar = getPackagedAsarPath()
 
@@ -125,6 +319,7 @@ async function installDownloadedAsar(downloadedAsarPath: string, latestVersion: 
     {
       detached: true,
       stdio: 'ignore',
+      windowsHide: true,
     },
   )
 
@@ -133,45 +328,4 @@ async function installDownloadedAsar(downloadedAsarPath: string, latestVersion: 
   app.quit()
 
   return true
-}
-
-export async function checkForGithubUpdate(): Promise<boolean> {
-  if (!app.isPackaged) {
-    return false
-  }
-
-  try {
-    const releaseResponse = await fetchWithTimeout(GITHUB_UPDATE_ENDPOINT, 8_000)
-    const release = await releaseResponse.json() as {
-      tag_name?: string
-      assets?: Array<{ name?: string; browser_download_url?: string }>
-    }
-    const latestVersion = String(release?.tag_name ?? '').replace(/^v/i, '')
-
-    if (!latestVersion || !isNewerVersion(latestVersion, app.getVersion())) {
-      return false
-    }
-
-    const assets = Array.isArray(release.assets) ? release.assets : []
-    const asarAsset = assets.find((asset) => asset?.name === 'app.asar')
-      ?? assets.find((asset) => String(asset?.name ?? '').toLowerCase().endsWith('.asar'))
-
-    if (!asarAsset?.browser_download_url) {
-      console.warn('GitHub update found, but no app.asar asset is attached.')
-      return false
-    }
-
-    const updatesDir = join(app.getPath('userData'), 'updates')
-    await mkdir(updatesDir, { recursive: true })
-
-    const downloadedAsarPath = join(updatesDir, `app-${latestVersion}.asar`)
-    const assetResponse = await fetchWithTimeout(asarAsset.browser_download_url, 120_000)
-    const assetBuffer = Buffer.from(await assetResponse.arrayBuffer())
-    await writeFile(downloadedAsarPath, assetBuffer)
-
-    return installDownloadedAsar(downloadedAsarPath, latestVersion)
-  } catch (error) {
-    console.warn('GitHub update check skipped.', error)
-    return false
-  }
 }

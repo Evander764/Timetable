@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Clock3, MapPin, Plus, Trash2, UserRound } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin, Plus, Trash2, UserRound } from 'lucide-react'
 import { addDays, subDays } from 'date-fns'
 import { Button } from '@renderer/components/Button'
 import { Card } from '@renderer/components/Card'
@@ -9,15 +9,12 @@ import { LoadingState } from '@renderer/components/LoadingState'
 import { PageHeader } from '@renderer/components/PageHeader'
 import { ProgressBar } from '@renderer/components/ProgressBar'
 import { useAppStore } from '@renderer/store/appStore'
-import type { Course } from '@shared/types/app'
+import type { Course, TimetableSlot } from '@shared/types/app'
 import { createId } from '@shared/utils/id'
-import { getCoursesForDate, getNextCourse, getWeekCourses } from '@shared/utils/course'
+import { defaultTimetableSlots, getCoursesForDate, getNextCourse, getWeekCourses, normalizeCourseTimeSlots, normalizeTermWeekCount } from '@shared/utils/course'
 import { getAcademicWeek, getMonthDayLabel, getWeekDays, parseTimeToMinutes } from '@shared/utils/date'
 
-const startHour = 8
-const endHour = 19
 const pixelsPerHour = 68
-const timeSlots = Array.from({ length: endHour - startHour }, (_, index) => startHour + index)
 
 function createBlankCourse(dayOfWeek = 1): Course {
   return {
@@ -26,8 +23,8 @@ function createBlankCourse(dayOfWeek = 1): Course {
     teacher: '',
     location: '',
     dayOfWeek,
-    startTime: '08:00',
-    endTime: '09:40',
+    startTime: defaultTimetableSlots[0].startTime,
+    endTime: defaultTimetableSlots[1]?.endTime ?? defaultTimetableSlots[0].endTime,
     repeatType: 'weekly',
     weekStart: 1,
     weekEnd: 20,
@@ -39,6 +36,7 @@ function createBlankCourse(dayOfWeek = 1): Course {
 export function SchedulePage() {
   const data = useAppStore((state) => state.data)
   const updateData = useAppStore((state) => state.updateData)
+  const updateSettings = useAppStore((state) => state.updateSettings)
   const [anchorDate, setAnchorDate] = useState(() => new Date())
   const [repeatFilter, setRepeatFilter] = useState<'all' | 'weekly' | 'odd' | 'even'>('all')
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null)
@@ -48,12 +46,17 @@ export function SchedulePage() {
     return <LoadingState />
   }
 
+  const timetableSlots = normalizeCourseTimeSlots(data.appSettings.timetableSlots)
+  const termWeekCount = normalizeTermWeekCount(data.appSettings.termWeekCount)
+  const startHour = Math.floor(parseTimeToMinutes(timetableSlots[0].startTime) / 60)
+  const endHour = Math.ceil(parseTimeToMinutes(timetableSlots[timetableSlots.length - 1].endTime) / 60)
+  const timeSlots = Array.from({ length: endHour - startHour }, (_, index) => startHour + index)
   const weekNumber = getAcademicWeek(anchorDate, data.appSettings.termStartDate)
   const weekDates = getWeekDays(anchorDate)
-  const weekCourses = getWeekCourses(data.courses, anchorDate, data.appSettings.termStartDate)
+  const weekCourses = getWeekCourses(data.courses, anchorDate, data.appSettings.termStartDate, termWeekCount)
   const today = new Date()
-  const todayCourses = getCoursesForDate(data.courses, today, data.appSettings.termStartDate)
-  const nextCourse = getNextCourse(data.courses, today, data.appSettings.termStartDate)
+  const todayCourses = getCoursesForDate(data.courses, today, data.appSettings.termStartDate, termWeekCount)
+  const nextCourse = getNextCourse(data.courses, today, data.appSettings.termStartDate, termWeekCount)
   const filteredWeekCourses = new Map(
     [...weekCourses.entries()].map(([day, courses]) => [
       day,
@@ -64,6 +67,11 @@ export function SchedulePage() {
   const weeklyCourseCount = [...filteredWeekCourses.values()].reduce((total, courses) => total + courses.length, 0)
   const uniqueCourseCount = new Set(data.courses.map((course) => course.name)).size
   const averagePerDay = (weeklyCourseCount / 5).toFixed(1)
+
+  function updateSlot(id: string, changes: Partial<TimetableSlot>) {
+    const nextSlots = timetableSlots.map((slot) => (slot.id === id ? { ...slot, ...changes } : slot))
+    void updateSettings({ appSettings: { timetableSlots: nextSlots } }, '课表时间已更新。')
+  }
 
   async function saveCourse() {
     await updateData({ type: 'course/upsert', payload: draft }, editingCourseId ? '课程已更新。' : '课程已创建。')
@@ -298,6 +306,62 @@ export function SchedulePage() {
             >
               保存修改
             </Button>
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-[320px_1fr] gap-4">
+        <Card>
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-50 text-blue-600">
+              <CalendarDays size={22} />
+            </div>
+            <div>
+              <div className="text-2xl font-semibold text-slate-900">学期设置</div>
+              <div className="text-sm text-slate-500">用于判断单/双周和学期范围。</div>
+            </div>
+          </div>
+          <div className="mt-5 space-y-4">
+            <Field label="学期开始日期">
+              <input
+                className="form-input"
+                type="date"
+                value={data.appSettings.termStartDate}
+                onChange={(event) => void updateSettings({ appSettings: { termStartDate: event.target.value } }, '学期开始日期已更新。')}
+              />
+            </Field>
+            <Field label="学期总周数">
+              <input
+                className="form-input"
+                type="number"
+                min={1}
+                max={40}
+                value={termWeekCount}
+                onChange={(event) => void updateSettings({ appSettings: { termWeekCount: Number(event.target.value) } }, '学期总周数已更新。')}
+              />
+            </Field>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-2xl font-semibold text-slate-900">课表时间</div>
+              <div className="mt-1 text-sm text-slate-500">上午五节、下午四节，另含傍晚课和晚课；可按个人安排修改。</div>
+            </div>
+            <Button onClick={() => void updateSettings({ appSettings: { timetableSlots: defaultTimetableSlots } }, '课表时间已恢复默认。')}>恢复默认</Button>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            {timetableSlots.map((slot) => (
+              <div key={slot.id} className="rounded-[14px] border border-slate-200/80 bg-white/85 p-3">
+                <div className="grid grid-cols-[82px_1fr_1fr] gap-2">
+                  <input className="form-input" value={slot.label} onChange={(event) => updateSlot(slot.id, { label: event.target.value })} />
+                  <input className="form-input" type="time" value={slot.startTime} onChange={(event) => updateSlot(slot.id, { startTime: event.target.value })} />
+                  <input className="form-input" type="time" value={slot.endTime} onChange={(event) => updateSlot(slot.id, { endTime: event.target.value })} />
+                </div>
+                <input className="form-input mt-2" value={slot.section} onChange={(event) => updateSlot(slot.id, { section: event.target.value })} />
+              </div>
+            ))}
           </div>
         </Card>
       </div>

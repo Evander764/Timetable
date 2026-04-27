@@ -53,7 +53,38 @@ export type ExportDataResult = {
   filePath?: string
 }
 
-export type WindowControlAction = 'minimize' | 'maximize' | 'close'
+export type BackupInfo = {
+  name: string
+  filePath: string
+  createdAt: string
+  reason: 'startup' | 'daily' | 'manual' | 'pre-update' | 'before-restore'
+  size: number
+}
+
+export type RestoreDataResult = {
+  canceled: boolean
+  filePath?: string
+  data?: AppData
+}
+
+export type GithubUpdateInfo = {
+  available: boolean
+  currentVersion: string
+  latestVersion?: string
+  releaseName?: string
+  publishedAt?: string
+  body?: string
+  assetName?: string
+  assetSize?: number
+  error?: string
+}
+
+export type GithubUpdateInstallResult = {
+  started: boolean
+  error?: string
+}
+
+export type WindowControlAction = 'minimize' | 'maximize' | 'close' | 'hide' | 'show' | 'quit'
 
 export type WindowStatePayload = {
   isMaximized: boolean
@@ -70,6 +101,13 @@ export type TimeableApi = {
   setStartup: (enabled: boolean) => Promise<AppData>
   selectBackground: () => Promise<SelectBackgroundResult | null>
   exportData: () => Promise<ExportDataResult>
+  createBackup: () => Promise<BackupInfo>
+  listBackups: () => Promise<BackupInfo[]>
+  restoreBackup: (filePath?: string) => Promise<RestoreDataResult>
+  openBackupDir: () => Promise<void>
+  checkForUpdate: () => Promise<GithubUpdateInfo>
+  installUpdate: () => Promise<GithubUpdateInstallResult>
+  saveBrowserUsageDay: (date: string) => Promise<ExportDataResult>
   filePathToUrl: (filePath: string) => string
   windowControl: (action: WindowControlAction) => Promise<void>
   overlayHover: (key: WidgetKey, hovering: boolean) => void

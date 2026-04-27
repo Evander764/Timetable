@@ -1,5 +1,5 @@
 import { addDays, compareAsc } from 'date-fns'
-import type { Course } from '@shared/types/app'
+import type { Course, TimetableSlot } from '@shared/types/app'
 import {
   combineDateAndTime,
   formatDateKey,
@@ -13,7 +13,66 @@ export type CourseOccurrence = Course & {
   dateKey: string
 }
 
-export function doesCourseAppear(course: Course, weekNumber: number): boolean {
+export type TodayCourseStatus = {
+  currentCourse: CourseOccurrence | null
+  nextCourse: CourseOccurrence | null
+  completedCourses: CourseOccurrence[]
+  remainingCourses: CourseOccurrence[]
+}
+
+export const defaultTimetableSlots: TimetableSlot[] = [
+  { id: 'morning-1', section: '上午', label: '第1节', startTime: '08:30', endTime: '09:10' },
+  { id: 'morning-2', section: '上午', label: '第2节', startTime: '09:15', endTime: '09:55' },
+  { id: 'morning-3', section: '上午', label: '第3节', startTime: '10:15', endTime: '10:55' },
+  { id: 'morning-4', section: '上午', label: '第4节', startTime: '11:00', endTime: '11:40' },
+  { id: 'morning-5', section: '上午', label: '第5节', startTime: '11:45', endTime: '12:25' },
+  { id: 'afternoon-1', section: '下午', label: '第6节', startTime: '14:15', endTime: '14:55' },
+  { id: 'afternoon-2', section: '下午', label: '第7节', startTime: '15:00', endTime: '15:40' },
+  { id: 'afternoon-3', section: '下午', label: '第8节', startTime: '16:00', endTime: '16:40' },
+  { id: 'afternoon-4', section: '下午', label: '第9节', startTime: '16:45', endTime: '17:25' },
+  { id: 'dusk', section: '傍晚', label: '傍晚课', startTime: '17:40', endTime: '18:55' },
+  { id: 'night', section: '晚上', label: '晚课', startTime: '19:00', endTime: '20:20' },
+]
+
+export function normalizeTermWeekCount(value: unknown): number {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) {
+    return 20
+  }
+  return Math.min(40, Math.max(1, Math.round(parsed)))
+}
+
+export function normalizeCourseTimeSlots(slots: unknown): TimetableSlot[] {
+  if (!Array.isArray(slots)) {
+    return defaultTimetableSlots
+  }
+
+  const normalized = slots
+    .map((slot, index) => {
+      const item = slot as Partial<TimetableSlot>
+      if (!item.startTime || !item.endTime) {
+        return null
+      }
+
+      return {
+        id: item.id || `slot-${index + 1}`,
+        section: item.section || '自定义',
+        label: item.label || `第${index + 1}节`,
+        startTime: item.startTime,
+        endTime: item.endTime,
+      }
+    })
+    .filter((slot): slot is TimetableSlot => Boolean(slot))
+    .sort((left, right) => parseTimeToMinutes(left.startTime) - parseTimeToMinutes(right.startTime))
+
+  return normalized.length ? normalized : defaultTimetableSlots
+}
+
+export function doesCourseAppear(course: Course, weekNumber: number, termWeekCount = 20): boolean {
+  if (weekNumber < 1 || weekNumber > normalizeTermWeekCount(termWeekCount)) {
+    return false
+  }
+
   if (course.weekStart && weekNumber < course.weekStart) {
     return false
   }
@@ -33,11 +92,16 @@ export function doesCourseAppear(course: Course, weekNumber: number): boolean {
   return true
 }
 
-export function getCoursesForDate(courses: Course[], date: Date, termStartDate: string): CourseOccurrence[] {
+export function getCoursesForDate(
+  courses: Course[],
+  date: Date,
+  termStartDate: string,
+  termWeekCount = 20,
+): CourseOccurrence[] {
   const weekNumber = getAcademicWeek(date, termStartDate)
   const weekday = getWeekdayIndex(date)
   return courses
-    .filter((course) => course.dayOfWeek === weekday && doesCourseAppear(course, weekNumber))
+    .filter((course) => course.dayOfWeek === weekday && doesCourseAppear(course, weekNumber, termWeekCount))
     .sort((left, right) => parseTimeToMinutes(left.startTime) - parseTimeToMinutes(right.startTime))
     .map((course) => ({
       ...course,
@@ -45,10 +109,10 @@ export function getCoursesForDate(courses: Course[], date: Date, termStartDate: 
     }))
 }
 
-export function getNextCourse(courses: Course[], now: Date, termStartDate: string): CourseOccurrence | null {
+export function getNextCourse(courses: Course[], now: Date, termStartDate: string, termWeekCount = 20): CourseOccurrence | null {
   for (let offset = 0; offset < 14; offset += 1) {
     const date = addDays(now, offset)
-    const dailyCourses = getCoursesForDate(courses, date, termStartDate)
+    const dailyCourses = getCoursesForDate(courses, date, termStartDate, termWeekCount)
     const next = dailyCourses.find((course) => combineDateAndTime(date, course.startTime).getTime() > now.getTime())
     if (next) {
       return next
@@ -58,7 +122,31 @@ export function getNextCourse(courses: Course[], now: Date, termStartDate: strin
   return null
 }
 
-export function getWeekCourses(courses: Course[], anchorDate: Date, termStartDate: string): Map<number, Course[]> {
+export function getTodayCourseStatus(courses: Course[], now: Date, termStartDate: string, termWeekCount = 20): TodayCourseStatus {
+  const todayCourses = getCoursesForDate(courses, now, termStartDate, termWeekCount)
+  const currentCourse = todayCourses.find((course) => {
+    const start = combineDateAndTime(now, course.startTime).getTime()
+    const end = combineDateAndTime(now, course.endTime).getTime()
+    return start <= now.getTime() && now.getTime() < end
+  }) ?? null
+  const nextCourse = todayCourses.find((course) => combineDateAndTime(now, course.startTime).getTime() > now.getTime()) ?? null
+  const completedCourses = todayCourses.filter((course) => combineDateAndTime(now, course.endTime).getTime() <= now.getTime())
+  const remainingCourses = todayCourses.filter((course) => combineDateAndTime(now, course.endTime).getTime() > now.getTime())
+
+  return {
+    currentCourse,
+    nextCourse,
+    completedCourses,
+    remainingCourses,
+  }
+}
+
+export function getWeekCourses(
+  courses: Course[],
+  anchorDate: Date,
+  termStartDate: string,
+  termWeekCount = 20,
+): Map<number, Course[]> {
   const weekStart = getWeekStart(anchorDate)
   const weekCourses = new Map<number, Course[]>()
 
@@ -66,7 +154,7 @@ export function getWeekCourses(courses: Course[], anchorDate: Date, termStartDat
     const date = addDays(weekStart, day - 1)
     weekCourses.set(
       day,
-      getCoursesForDate(courses, date, termStartDate).sort((left, right) => compareAsc(
+      getCoursesForDate(courses, date, termStartDate, termWeekCount).sort((left, right) => compareAsc(
         combineDateAndTime(date, left.startTime),
         combineDateAndTime(date, right.startTime),
       )),

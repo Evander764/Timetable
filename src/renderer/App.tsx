@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ShellLayout } from '@renderer/components/ShellLayout'
 import { ToastViewport } from '@renderer/components/ToastViewport'
 import { DataStartupPage } from '@renderer/pages/DataStartupPage'
+import { BrowserUsagePage } from '@renderer/pages/BrowserUsagePage'
 import { CountdownPage } from '@renderer/pages/CountdownPage'
 import { DailyTasksPage } from '@renderer/pages/DailyTasksPage'
 import { DesktopPanelPage } from '@renderer/pages/DesktopPanelPage'
@@ -43,6 +44,7 @@ export default function App() {
           <Route element={<ShellLayout />}>
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<OverviewPage />} />
+            <Route path="/browser-usage" element={<BrowserUsagePage />} />
             <Route path="/desktop-panel" element={<DesktopPanelPage />} />
             <Route path="/schedule" element={<SchedulePage />} />
             <Route path="/daily-tasks" element={<DailyTasksPage />} />
