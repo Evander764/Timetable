@@ -245,9 +245,17 @@ export class WindowManager {
 
     if (hovering) {
       if (runtime.hidden && runtime.expandedBounds) {
-        this.setOverlayBounds(key, runtime.expandedBounds)
         runtime.hidden = false
+        runtime.collapsedEdge = undefined
+        const expandedBounds = constrainBoundsToDisplay(runtime.expandedBounds)
+        this.setOverlayBounds(key, expandedBounds)
+        this.restoreOverlayWindowConstraints(window, key, data)
+        runtime.expandedBounds = undefined
       }
+      return
+    }
+
+    if (runtime.hidden) {
       return
     }
 
@@ -258,7 +266,7 @@ export class WindowManager {
     }
 
     const display = screen.getDisplayMatching(window.getBounds()).workArea
-    const bounds = window.getBounds()
+    const bounds = constrainBoundsToDisplay(window.getBounds(), display)
     const edge = getCollapsibleEdge(bounds, display, AUTO_HIDE_THRESHOLD)
     if (!edge) {
       return
@@ -268,18 +276,10 @@ export class WindowManager {
     runtime.collapsedEdge = edge
     runtime.hidden = true
 
-    const collapsed = { ...bounds }
-    if (edge === 'left') {
-      collapsed.x = display.x - bounds.width + AUTO_HIDE_STRIP
-    } else if (edge === 'right') {
-      collapsed.x = display.x + display.width - AUTO_HIDE_STRIP
-    } else if (edge === 'top') {
-      collapsed.y = display.y - bounds.height + AUTO_HIDE_STRIP
-    } else {
-      collapsed.y = display.y + display.height - AUTO_HIDE_STRIP
-    }
-
-    this.setOverlayBounds(key, collapsed, false)
+    window.setMinimumSize(1, 1)
+    window.setResizable(false)
+    window.setMovable(false)
+    this.setOverlayBounds(key, getCollapsedOverlayBounds(bounds, display, edge), false)
   }
 
   getMainWindow(): BrowserWindow | null {
@@ -370,19 +370,35 @@ export class WindowManager {
       height: Math.round(config.height),
     })
     window.setIgnoreMouseEvents(false)
-    window.setResizable(isOverlayUserResizable(key) && !runtime.hidden)
-    window.setMovable(isOverlayUserMovable() && !this.isOverlayDragLocked(key, data))
     window.setAlwaysOnTop(data.desktopSettings.overlayMode === 'floating' && data.desktopSettings.alwaysOnTop, 'screen-saver')
     window.setOpacity(clampOpacity(config.opacity * data.desktopSettings.opacity))
+
+    if (runtime.hidden) {
+      runtime.expandedBounds ??= configuredBounds
+      window.setMinimumSize(1, 1)
+      window.setResizable(false)
+      window.setMovable(false)
+
+      if (runtime.collapsedEdge) {
+        const display = screen.getDisplayMatching(runtime.expandedBounds).workArea
+        const collapsedBounds = getCollapsedOverlayBounds(runtime.expandedBounds, display, runtime.collapsedEdge)
+        if (!sameBounds(window.getBounds(), collapsedBounds)) {
+          this.setOverlayBounds(key, collapsedBounds, false)
+        }
+      }
+      return
+    }
+
+    this.restoreOverlayWindowConstraints(window, key, data)
     if (!runtime.hidden && !sameBounds(window.getBounds(), configuredBounds)) {
       this.setOverlayBounds(key, configuredBounds, false)
     }
+  }
 
-    if (runtime.hidden && runtime.expandedBounds) {
-      runtime.hidden = false
-      runtime.expandedBounds = undefined
-      runtime.collapsedEdge = undefined
-    }
+  private restoreOverlayWindowConstraints(window: BrowserWindow, key: WidgetKey, data: AppData): void {
+    window.setMinimumSize(getOverlayMinWidth(key), getOverlayMinHeight(key))
+    window.setResizable(isOverlayUserResizable(key))
+    window.setMovable(isOverlayUserMovable() && !this.isOverlayDragLocked(key, data))
   }
 
   private withConfiguredOverlaySize(key: WidgetKey, bounds: Rectangle): Rectangle {
@@ -562,4 +578,24 @@ function getCollapsibleEdge(bounds: Rectangle, display: Rectangle, threshold: nu
     return 'bottom'
   }
   return undefined
+}
+
+function getCollapsedOverlayBounds(bounds: Rectangle, display: Rectangle, edge: 'left' | 'right' | 'top' | 'bottom'): Rectangle {
+  const width = Math.min(Math.max(1, Math.round(bounds.width)), display.width)
+  const height = Math.min(Math.max(1, Math.round(bounds.height)), display.height)
+  const stripWidth = Math.min(AUTO_HIDE_STRIP, width, display.width)
+  const stripHeight = Math.min(AUTO_HIDE_STRIP, height, display.height)
+  const x = clamp(Math.round(bounds.x), display.x, display.x + display.width - width)
+  const y = clamp(Math.round(bounds.y), display.y, display.y + display.height - height)
+
+  if (edge === 'left') {
+    return { x: display.x, y, width: stripWidth, height }
+  }
+  if (edge === 'right') {
+    return { x: display.x + display.width - stripWidth, y, width: stripWidth, height }
+  }
+  if (edge === 'top') {
+    return { x, y: display.y, width, height: stripHeight }
+  }
+  return { x, y: display.y + display.height - stripHeight, width, height: stripHeight }
 }
