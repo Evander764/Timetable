@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin, Plus, Trash2, UserRound } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { addDays, subDays } from 'date-fns'
 import { Button } from '@renderer/components/Button'
 import { Card } from '@renderer/components/Card'
@@ -31,6 +31,10 @@ function createBlankCourse(dayOfWeek = 1): Course {
     color: '#3B82F6',
     note: '',
   }
+}
+
+function getCourseDetails(course: Pick<Course, 'teacher' | 'location'>): string {
+  return [course.teacher, course.location].map((item) => item.trim()).filter(Boolean).join(' · ')
 }
 
 export function SchedulePage() {
@@ -179,37 +183,29 @@ export function SchedulePage() {
                   const endMinutes = parseTimeToMinutes(course.endTime)
                   const top = ((startMinutes - startHour * 60) / 60) * pixelsPerHour
                   const height = ((endMinutes - startMinutes) / 60) * pixelsPerHour
+                  const courseDetails = getCourseDetails(course)
+                  const showTime = height >= 38
+                  const showDetails = Boolean(courseDetails) && height >= 64
                   return (
                     <button
                       key={course.id}
                       type="button"
-                      className="absolute left-2 right-2 rounded-[20px] border p-3 text-left shadow-[0_15px_28px_rgba(51,92,161,0.12)]"
+                      className="absolute left-1.5 right-1.5 overflow-hidden rounded-[14px] border px-2.5 py-2 text-left shadow-[0_10px_22px_rgba(51,92,161,0.12)]"
                       style={{
                         top,
                         height,
                         background: `${course.color ?? '#3B82F6'}14`,
                         borderColor: `${course.color ?? '#3B82F6'}66`,
                       }}
+                      title={[course.name, `${course.startTime}-${course.endTime}`, courseDetails].filter(Boolean).join(' · ')}
                       onClick={() => {
                         setEditingCourseId(course.id)
                         setDraft(course)
                       }}
                     >
-                      <div className="text-lg font-semibold" style={{ color: course.color ?? '#2563EB' }}>{course.name}</div>
-                      <div className="mt-2 space-y-1 text-sm text-slate-600">
-                        <div className="flex items-center gap-1.5">
-                          <UserRound size={14} />
-                          <span>{course.teacher}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <MapPin size={14} />
-                          <span>{course.location}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Clock3 size={14} />
-                          <span>{course.startTime}-{course.endTime}</span>
-                        </div>
-                      </div>
+                      <div className="truncate text-[15px] font-semibold leading-tight" style={{ color: course.color ?? '#2563EB' }}>{course.name}</div>
+                      {showTime ? <div className="mt-1 truncate text-[11px] font-medium leading-tight text-slate-600">{course.startTime}-{course.endTime}</div> : null}
+                      {showDetails ? <div className="mt-1 truncate text-[11px] leading-tight text-slate-500">{courseDetails}</div> : null}
                     </button>
                   )
                 })}
@@ -375,15 +371,18 @@ export function SchedulePage() {
           </div>
           <div className="mt-4 space-y-3">
             {todayCourses.length ? (
-              todayCourses.map((course) => (
-                <div key={course.id} className="flex items-center justify-between rounded-[18px] border border-slate-200/80 bg-white/85 px-4 py-3">
-                  <div>
-                    <div className="text-lg font-semibold text-slate-900">{course.startTime} {course.name}</div>
-                    <div className="mt-1 text-sm text-slate-500">{course.teacher} {course.location}</div>
+              todayCourses.map((course) => {
+                const courseDetails = getCourseDetails(course)
+                return (
+                  <div key={course.id} className="flex items-center justify-between gap-3 rounded-[18px] border border-slate-200/80 bg-white/85 px-4 py-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-lg font-semibold text-slate-900">{course.startTime} {course.name}</div>
+                      {courseDetails ? <div className="mt-1 truncate text-sm text-slate-500">{courseDetails}</div> : null}
+                    </div>
+                    <span className="shrink-0 text-sm text-slate-400">{course.endTime}</span>
                   </div>
-                  <span className="text-sm text-slate-400">{course.endTime}</span>
-                </div>
-              ))
+                )
+              })
             ) : (
               <EmptyState title="今日暂无课程" description="你可以在右侧面板中创建新课程，或切换到其他周查看安排。" />
             )}
@@ -396,7 +395,7 @@ export function SchedulePage() {
             <div className="mt-5">
               <div className="text-6xl font-semibold text-slate-900">{nextCourse.startTime}</div>
               <div className="mt-3 text-2xl font-semibold text-emerald-600">{nextCourse.name}</div>
-              <div className="mt-2 text-base text-slate-500">{nextCourse.teacher} {nextCourse.location}</div>
+              {getCourseDetails(nextCourse) ? <div className="mt-2 text-base text-slate-500">{getCourseDetails(nextCourse)}</div> : null}
             </div>
           ) : (
             <EmptyState title="没有即将开始的课程" description="未来两周内都没有匹配的课程安排，可能需要调整学期起始日期或补充课程。" />

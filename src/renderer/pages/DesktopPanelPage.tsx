@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { LayoutPanelTop, MonitorSmartphone, PanelBottomOpen } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, LayoutPanelTop, MonitorSmartphone, PanelBottomOpen } from 'lucide-react'
 import { Button } from '@renderer/components/Button'
 import { Card } from '@renderer/components/Card'
 import { LoadingState } from '@renderer/components/LoadingState'
@@ -21,6 +22,7 @@ export function DesktopPanelPage() {
   const data = useAppStore((state) => state.data)
   const updateSettings = useAppStore((state) => state.updateSettings)
   const updateWidget = useAppStore((state) => state.updateWidget)
+  const [expandedWidgetKey, setExpandedWidgetKey] = useState<WidgetKey | null>(null)
 
   if (!data) {
     return <LoadingState />
@@ -118,50 +120,65 @@ export function DesktopPanelPage() {
               const config = data.desktopSettings.widgets[key]
               const sizeBase = WIDGET_SIZE_BASES[key]
               const sizePercent = getWidgetScalePercent(key, config)
+              const expanded = expandedWidgetKey === key
               return (
                 <div key={key} className="rounded-[24px] border border-slate-200/80 bg-white/88 p-4">
                   <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="text-2xl font-semibold tracking-tight text-slate-900">{widgetMeta[key].title}</div>
-                      <div className="mt-1 text-sm text-slate-500">{widgetMeta[key].desc}</div>
-                    </div>
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                      onClick={() => setExpandedWidgetKey(expanded ? null : key)}
+                      title={expanded ? '收起设置' : '展开设置'}
+                      aria-label={expanded ? `收起${widgetMeta[key].title}设置` : `展开${widgetMeta[key].title}设置`}
+                    >
+                      <ChevronDown className={`mt-1 shrink-0 text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`} size={18} />
+                      <span className="min-w-0">
+                        <span className="block truncate text-2xl font-semibold tracking-tight text-slate-900">{widgetMeta[key].title}</span>
+                        <span className="mt-1 block truncate text-sm text-slate-500">{widgetMeta[key].desc}</span>
+                      </span>
+                    </button>
                     <Toggle checked={config.enabled} onCheckedChange={(checked) => void updateWidget({ key, changes: { enabled: checked } }, checked ? '卡片已显示。' : '卡片已隐藏。')} />
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-500">
-                    <div className="rounded-[18px] border border-slate-200/80 bg-slate-50/70 px-3 py-2">位置：{Math.round(config.x)}, {Math.round(config.y)}</div>
-                    <div className="rounded-[18px] border border-slate-200/80 bg-slate-50/70 px-3 py-2">尺寸：{Math.round(config.width)} × {Math.round(config.height)}</div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                    <span className="rounded-full bg-slate-50 px-2.5 py-1">位置 {Math.round(config.x)}, {Math.round(config.y)}</span>
+                    <span className="rounded-full bg-slate-50 px-2.5 py-1">尺寸 {Math.round(config.width)} × {Math.round(config.height)}</span>
+                    <span className="rounded-full bg-slate-50 px-2.5 py-1">透明度 {Math.round(config.opacity * 100)}%</span>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-[1fr_110px] items-center gap-4">
-                    <div>
-                      <div className="text-sm font-medium text-slate-500">卡片尺寸</div>
-                      <input
-                        className="mt-3 w-full accent-[var(--color-primary)]"
-                        type="range"
-                        min={sizeBase.minScale}
-                        max={sizeBase.maxScale}
-                        value={sizePercent}
-                        onChange={(event) => void updateWidget({ key, changes: resizeWidgetByScale(key, Number(event.target.value)) })}
-                      />
-                    </div>
-                    <div className="text-right text-2xl font-semibold text-slate-900">{sizePercent}%</div>
-                  </div>
+                  {expanded ? (
+                    <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+                      <div className="grid grid-cols-[1fr_88px] items-center gap-4">
+                        <div>
+                          <div className="text-sm font-medium text-slate-500">卡片尺寸</div>
+                          <input
+                            className="mt-3 w-full accent-[var(--color-primary)]"
+                            type="range"
+                            min={sizeBase.minScale}
+                            max={sizeBase.maxScale}
+                            value={sizePercent}
+                            onChange={(event) => void updateWidget({ key, changes: resizeWidgetByScale(key, Number(event.target.value)) })}
+                          />
+                        </div>
+                        <div className="text-right text-xl font-semibold text-slate-900">{sizePercent}%</div>
+                      </div>
 
-                  <div className="mt-4 grid grid-cols-[1fr_110px] items-center gap-4">
-                    <div>
-                      <div className="text-sm font-medium text-slate-500">卡片透明度</div>
-                      <input
-                        className="mt-3 w-full accent-[var(--color-primary)]"
-                        type="range"
-                        min={30}
-                        max={100}
-                        value={Math.round(config.opacity * 100)}
-                        onChange={(event) => void updateWidget({ key, changes: { opacity: Number(event.target.value) / 100 } })}
-                      />
+                      <div className="grid grid-cols-[1fr_88px] items-center gap-4">
+                        <div>
+                          <div className="text-sm font-medium text-slate-500">卡片透明度</div>
+                          <input
+                            className="mt-3 w-full accent-[var(--color-primary)]"
+                            type="range"
+                            min={30}
+                            max={100}
+                            value={Math.round(config.opacity * 100)}
+                            onChange={(event) => void updateWidget({ key, changes: { opacity: Number(event.target.value) / 100 } })}
+                          />
+                        </div>
+                        <div className="text-right text-xl font-semibold text-slate-900">{Math.round(config.opacity * 100)}%</div>
+                      </div>
                     </div>
-                    <div className="text-right text-2xl font-semibold text-slate-900">{Math.round(config.opacity * 100)}%</div>
-                  </div>
+                  ) : null}
                 </div>
               )
             })}
