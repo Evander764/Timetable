@@ -3,7 +3,7 @@ import { app, BrowserWindow, Menu, nativeImage, screen, shell, Tray } from 'elec
 import type { Rectangle } from 'electron/main'
 import type { AppData, WidgetKey } from '@shared/types/app'
 import type { OverlayWidgetUpdatePayload, WindowStatePayload } from '@shared/ipc'
-import { getEffectiveOverlayOpacity } from '@shared/utils/widgets'
+import { getEffectiveOverlayOpacity, normalizeDesktopAutoHideDelayMs } from '@shared/utils/widgets'
 
 type OverlayRuntimeState = {
   hidden: boolean
@@ -20,7 +20,6 @@ const rendererHtml = join(__dirname, '../renderer/index.html')
 const preloadPath = join(__dirname, '../preload/index.mjs')
 const AUTO_HIDE_THRESHOLD = 40
 const AUTO_HIDE_STRIP = 22
-const AUTO_HIDE_COLLAPSE_DELAY_MS = 420
 const AUTO_HIDE_POINTER_MARGIN = 8
 const PROGRAMMATIC_BOUNDS_SUPPRESS_MS = 180
 const MAIN_WINDOW_DEFAULT_WIDTH = 1180
@@ -292,7 +291,8 @@ export class WindowManager {
       frame: false,
       transparent: true,
       hasShadow: false,
-      resizable: isOverlayUserResizable(key),
+      resizable: isOverlayUserResizable(key) && !this.isOverlayLayoutLocked(key, data),
+      movable: isOverlayUserMovable() && !this.isOverlayLayoutLocked(key, data),
       skipTaskbar: true,
       show: false,
       backgroundColor: '#00000000',
@@ -305,7 +305,8 @@ export class WindowManager {
 
     window.on('will-move', (event, newBounds) => {
       const runtime = this.overlayState.get(key)
-      if (runtime?.hidden) {
+      const currentData = this.latestData ?? data
+      if (runtime?.hidden || this.isOverlayLayoutLocked(key, currentData)) {
         event.preventDefault()
         return
       }
@@ -328,6 +329,12 @@ export class WindowManager {
       this.queueOverlayBoundsSync(key, undefined, false, 'move')
     })
     window.on('resized', () => {
+      const currentData = this.latestData ?? data
+      if (this.isOverlayLayoutLocked(key, currentData)) {
+        this.setOverlayBounds(key, this.withConfiguredOverlaySize(key, window.getBounds()))
+        return
+      }
+
       const runtime = this.overlayState.get(key)
       const resizedDuringMove = Boolean(runtime?.suppressResizeUntil && Date.now() < runtime.suppressResizeUntil)
       this.queueOverlayBoundsSync(key, undefined, resizedDuringMove, resizedDuringMove ? 'move' : 'resize')
@@ -387,8 +394,9 @@ export class WindowManager {
 
   private restoreOverlayWindowConstraints(window: BrowserWindow, key: WidgetKey, data: AppData): void {
     window.setMinimumSize(getOverlayMinWidth(key), getOverlayMinHeight(key))
-    window.setResizable(isOverlayUserResizable(key))
-    window.setMovable(isOverlayUserMovable() && !this.isOverlayDragLocked(key, data))
+    const layoutLocked = this.isOverlayLayoutLocked(key, data)
+    window.setResizable(isOverlayUserResizable(key) && !layoutLocked)
+    window.setMovable(isOverlayUserMovable() && !layoutLocked)
   }
 
   private scheduleOverlayCollapse(key: WidgetKey, data: AppData): void {
@@ -433,7 +441,7 @@ export class WindowManager {
       window.setResizable(false)
       window.setMovable(false)
       this.setOverlayBounds(key, getHiddenOverlayBounds(bounds, display, edge), false)
-    }, AUTO_HIDE_COLLAPSE_DELAY_MS)
+    }, normalizeDesktopAutoHideDelayMs(data.appSettings.desktopAutoHideDelayMs))
   }
 
   private withConfiguredOverlaySize(key: WidgetKey, bounds: Rectangle): Rectangle {
@@ -532,9 +540,9 @@ export class WindowManager {
     }
   }
 
-  private isOverlayDragLocked(key: WidgetKey, data: AppData): boolean {
+  private isOverlayLayoutLocked(key: WidgetKey, data: AppData): boolean {
     const config = data.desktopSettings.widgets[key]
-    return data.desktopSettings.dragLocked || Boolean(config.dragLocked)
+    return data.appSettings.desktopLayoutLockEnabled || data.desktopSettings.dragLocked || Boolean(config.dragLocked)
   }
 }
 

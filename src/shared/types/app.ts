@@ -196,6 +196,10 @@ export type AppSettings = {
   termStartDate: string
   termWeekCount: number
   timetableSlots: TimetableSlot[]
+  courseReminderEnabled: boolean
+  courseReminderMinutes: number
+  desktopAutoHideDelayMs: number
+  desktopLayoutLockEnabled: boolean
   desktopLayoutVersion?: number
   opacityVersion?: number
   autoBackupEnabled: boolean

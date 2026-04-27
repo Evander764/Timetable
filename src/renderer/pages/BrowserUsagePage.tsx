@@ -88,16 +88,16 @@ export function BrowserUsagePage() {
           <div className="mt-5 grid gap-3">
             <InfoRow label="统计日期" value={selectedDate} />
             <InfoRow label="网页条目" value={`${webPages.length} · ${webPercent}%`} />
-            <InfoRow label="AI 总时间" value={`${formatUsageDuration(aiTotalSeconds)} · ${aiPercent}%`} />
+            <InfoRow label="AI 占比" value={`${aiPercent}% · ${aiApps.length} 项`} />
             <InfoRow label="最高占比" value={topEntry ? `${getUsageDisplayDomain(topEntry)} · ${topPercent}%` : '暂无记录'} />
-            <InfoRow label="累计时间" value={formatUsageDuration(day.totalSeconds)} />
+            <InfoRow label="占比基准" value="总使用 100%" />
           </div>
         </Card>
 
         <Card>
           <div className="flex items-center justify-between">
             <div className="text-2xl font-semibold text-slate-900">使用明细</div>
-            <span className="text-sm text-slate-500">按占比排序 · {formatUsageDuration(day.totalSeconds)}</span>
+            <span className="text-sm text-slate-500">按总使用时间占比排序 · 总使用 100%</span>
           </div>
           <div className="mt-5 space-y-3">
             {pages.length ? pages.map((page) => {
@@ -120,13 +120,13 @@ export function BrowserUsagePage() {
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="text-2xl font-semibold text-slate-900">{usagePercent}%</div>
-                      <div className="mt-1 text-xs text-slate-500">{formatUsageDuration(page.totalSeconds)}</div>
+                      <div className="mt-1 text-xs text-slate-500">占总使用时间</div>
                     </div>
                   </div>
                   <ProgressBar className="mt-3" value={usagePercent} accentClassName={isWeb ? 'bg-blue-500' : 'bg-violet-500'} />
                   <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-400">
                     <span className="truncate">{isWeb ? page.url : '不保存 AI 对话标题或具体链接'}</span>
-                    <span className="shrink-0 font-medium text-slate-500">占比 {usagePercent}%</span>
+                    <span className="shrink-0 font-medium text-slate-500">总使用 {usagePercent}%</span>
                   </div>
                 </div>
               )

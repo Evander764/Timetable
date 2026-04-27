@@ -8,10 +8,11 @@ import { EmptyState } from '@renderer/components/EmptyState'
 import { LoadingState } from '@renderer/components/LoadingState'
 import { PageHeader } from '@renderer/components/PageHeader'
 import { ProgressBar } from '@renderer/components/ProgressBar'
+import { Toggle } from '@renderer/components/Toggle'
 import { useAppStore } from '@renderer/store/appStore'
 import type { Course, TimetableSlot } from '@shared/types/app'
 import { createId } from '@shared/utils/id'
-import { defaultTimetableSlots, getCoursesForDate, getNextCourse, getWeekCourses, normalizeCourseTimeSlots, normalizeTermWeekCount } from '@shared/utils/course'
+import { defaultTimetableSlots, getCoursesForDate, getNextCourse, getWeekCourses, normalizeCourseReminderMinutes, normalizeCourseTimeSlots, normalizeTermWeekCount } from '@shared/utils/course'
 import { getAcademicWeek, getMonthDayLabel, getWeekDays, parseTimeToMinutes } from '@shared/utils/date'
 
 const pixelsPerHour = 68
@@ -52,6 +53,7 @@ export function SchedulePage() {
 
   const timetableSlots = normalizeCourseTimeSlots(data.appSettings.timetableSlots)
   const termWeekCount = normalizeTermWeekCount(data.appSettings.termWeekCount)
+  const reminderMinutes = normalizeCourseReminderMinutes(data.appSettings.courseReminderMinutes)
   const startHour = Math.floor(parseTimeToMinutes(timetableSlots[0].startTime) / 60)
   const endHour = Math.ceil(parseTimeToMinutes(timetableSlots[timetableSlots.length - 1].endTime) / 60)
   const timeSlots = Array.from({ length: endHour - startHour }, (_, index) => startHour + index)
@@ -336,6 +338,37 @@ export function SchedulePage() {
                 onChange={(event) => void updateSettings({ appSettings: { termWeekCount: Number(event.target.value) } }, '学期总周数已更新。')}
               />
             </Field>
+            <div className="border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-lg font-semibold text-slate-900">课程提醒</div>
+                  <div className="mt-1 text-sm text-slate-500">默认提前 15 分钟，提醒时间可以自行调整。</div>
+                </div>
+                <Toggle
+                  checked={data.appSettings.courseReminderEnabled}
+                  onCheckedChange={(checked) => void updateSettings({ appSettings: { courseReminderEnabled: checked } }, checked ? '课程提醒已开启。' : '课程提醒已关闭。')}
+                />
+              </div>
+              <div className="mt-4 grid grid-cols-[1fr_78px] items-center gap-3">
+                <input
+                  className="accent-[var(--color-primary)]"
+                  type="range"
+                  min={1}
+                  max={120}
+                  value={reminderMinutes}
+                  onChange={(event) => void updateSettings({ appSettings: { courseReminderMinutes: Number(event.target.value) } })}
+                />
+                <input
+                  className="form-input text-center"
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={reminderMinutes}
+                  onChange={(event) => void updateSettings({ appSettings: { courseReminderMinutes: Number(event.target.value) } })}
+                />
+              </div>
+              <div className="mt-2 text-xs text-slate-400">提前 {reminderMinutes} 分钟发送系统通知。</div>
+            </div>
           </div>
         </Card>
 

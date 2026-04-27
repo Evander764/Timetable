@@ -2,6 +2,7 @@ import type { AppData, WidgetConfig, WidgetKey } from '@shared/types/app'
 
 export const OVERLAY_OPACITY_VERSION = 3
 export const DEFAULT_OVERLAY_OPACITY = 0.98
+export const DEFAULT_DESKTOP_AUTO_HIDE_DELAY_MS = 800
 
 type WidgetSizeBase = {
   width: number
@@ -129,6 +130,15 @@ export function migrateOverlayOpacity(data: AppData, previousOpacityVersion?: nu
 
 export function getEffectiveOverlayOpacity(widgetOpacity?: number, desktopOpacity?: number): number {
   return clamp(Math.min(normalizeOpacity(widgetOpacity), normalizeOpacity(desktopOpacity)), 0.2, 1)
+}
+
+export function normalizeDesktopAutoHideDelayMs(value: unknown): number {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_DESKTOP_AUTO_HIDE_DELAY_MS
+  }
+
+  return clamp(Math.round(parsed), 300, 3000)
 }
 
 export function migrateDesktopThreePieceLayout(data: AppData, previousLayoutVersion?: number): AppData {

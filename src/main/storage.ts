@@ -4,7 +4,7 @@ import { dialog, type BrowserWindow } from 'electron'
 import type { AppData, BrowserPageSample } from '@shared/types/app'
 import type { BackupInfo, DataAction, ExportDataResult, OverlayWidgetUpdatePayload, SettingsUpdatePayload } from '@shared/ipc'
 import { createDefaultAppData } from '@shared/data/defaults'
-import { applyDataAction, applyOverlayWidgetUpdate, applySettingsUpdate } from '@shared/data/reducer'
+import { applyDataAction, applyOverlayWidgetUpdate, applySettingsUpdate, normalizeAppSettings } from '@shared/data/reducer'
 import { formatDateKey } from '@shared/utils/date'
 import { createBrowserUsageDaySnapshot, normalizeBrowserPageSample, recordBrowserUsageSample } from '@shared/utils/browserUsage'
 import { normalizeCourseTimeSlots, normalizeTermWeekCount } from '@shared/utils/course'
@@ -310,11 +310,13 @@ export class AppStorage {
         },
       },
       appSettings: {
-        ...defaults.appSettings,
-        ...raw.appSettings,
-        dataPath: this.filePath,
-        termWeekCount: normalizeTermWeekCount(raw.appSettings?.termWeekCount ?? defaults.appSettings.termWeekCount),
-        timetableSlots: normalizeCourseTimeSlots(raw.appSettings?.timetableSlots ?? defaults.appSettings.timetableSlots),
+        ...normalizeAppSettings({
+          ...defaults.appSettings,
+          ...raw.appSettings,
+          dataPath: this.filePath,
+          termWeekCount: normalizeTermWeekCount(raw.appSettings?.termWeekCount ?? defaults.appSettings.termWeekCount),
+          timetableSlots: normalizeCourseTimeSlots(raw.appSettings?.timetableSlots ?? defaults.appSettings.timetableSlots),
+        }),
       },
       browserUsage: raw.browserUsage ?? defaults.browserUsage,
     }))

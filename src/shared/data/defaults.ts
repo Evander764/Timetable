@@ -1,8 +1,8 @@
 import type { AppData, Course, DailyTask, LongTermGoal, Memo, WidgetConfig } from '@shared/types/app'
 import { createId } from '@shared/utils/id'
 import { formatDateKey, getWeekStart } from '@shared/utils/date'
-import { defaultTimetableSlots } from '@shared/utils/course'
-import { DEFAULT_OVERLAY_OPACITY, OVERLAY_OPACITY_VERSION } from '@shared/utils/widgets'
+import { DEFAULT_COURSE_REMINDER_MINUTES, defaultTimetableSlots } from '@shared/utils/course'
+import { DEFAULT_DESKTOP_AUTO_HIDE_DELAY_MS, DEFAULT_OVERLAY_OPACITY, OVERLAY_OPACITY_VERSION } from '@shared/utils/widgets'
 import { addDays, format, subDays } from 'date-fns'
 
 const cardBase = {
@@ -20,6 +20,25 @@ function widget(x: number, y: number, width: number, height: number, config?: Pa
     autoHide: false,
     minimized: false,
     ...config,
+  }
+}
+
+export function createDefaultDesktopSettings(): AppData['desktopSettings'] {
+  return {
+    overlayEnabled: true,
+    opacity: DEFAULT_OVERLAY_OPACITY,
+    scale: 1,
+    alwaysOnTop: true,
+    autoHide: false,
+    dragLocked: false,
+    overlayMode: 'floating',
+    widgets: {
+      mainPanel: widget(40, 42, 560, 640),
+      dailyTasks: widget(640, 72, 430, 430, { enabled: false }),
+      memo: widget(640, 520, 420, 380, { enabled: false }),
+      countdown: widget(40, 710, 390, 54, { minimized: true }),
+      principle: widget(640, 42, 400, 190, { enabled: false }),
+    },
   }
 }
 
@@ -270,22 +289,7 @@ export function createDefaultAppData(dataPath: string): AppData {
       position: 'bottom-left',
       opacity: DEFAULT_OVERLAY_OPACITY,
     },
-    desktopSettings: {
-      overlayEnabled: true,
-      opacity: DEFAULT_OVERLAY_OPACITY,
-      scale: 1,
-      alwaysOnTop: true,
-      autoHide: false,
-      dragLocked: false,
-      overlayMode: 'floating',
-      widgets: {
-        mainPanel: widget(40, 42, 560, 640),
-        dailyTasks: widget(640, 72, 430, 430, { enabled: false }),
-        memo: widget(640, 520, 420, 380, { enabled: false }),
-        countdown: widget(40, 710, 390, 54, { minimized: true }),
-        principle: widget(640, 42, 400, 190, { enabled: false }),
-      },
-    },
+    desktopSettings: createDefaultDesktopSettings(),
     appSettings: {
       autoSave: true,
       launchAtStartup: false,
@@ -299,6 +303,10 @@ export function createDefaultAppData(dataPath: string): AppData {
       termStartDate,
       termWeekCount: 20,
       timetableSlots: defaultTimetableSlots,
+      courseReminderEnabled: true,
+      courseReminderMinutes: DEFAULT_COURSE_REMINDER_MINUTES,
+      desktopAutoHideDelayMs: DEFAULT_DESKTOP_AUTO_HIDE_DELAY_MS,
+      desktopLayoutLockEnabled: false,
       autoBackupEnabled: true,
       autoCheckForUpdates: true,
     },

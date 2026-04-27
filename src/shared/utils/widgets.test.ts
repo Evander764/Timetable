@@ -4,6 +4,7 @@ import {
   DEFAULT_OVERLAY_OPACITY,
   getEffectiveOverlayOpacity,
   migrateOverlayOpacity,
+  normalizeDesktopAutoHideDelayMs,
   OVERLAY_OPACITY_VERSION,
 } from './widgets'
 
@@ -36,5 +37,12 @@ describe('overlay widget opacity', () => {
     expect(migrated.desktopSettings.widgets.countdown.opacity).toBe(DEFAULT_OVERLAY_OPACITY)
     expect(migrated.desktopSettings.widgets.principle.opacity).toBe(DEFAULT_OVERLAY_OPACITY)
     expect(migrated.appSettings.opacityVersion).toBe(OVERLAY_OPACITY_VERSION)
+  })
+
+  it('normalizes desktop auto-hide delay', () => {
+    expect(normalizeDesktopAutoHideDelayMs(undefined)).toBe(800)
+    expect(normalizeDesktopAutoHideDelayMs(100)).toBe(300)
+    expect(normalizeDesktopAutoHideDelayMs(3200)).toBe(3000)
+    expect(normalizeDesktopAutoHideDelayMs(1250.4)).toBe(1250)
   })
 })
