@@ -30,10 +30,12 @@ export function BrowserUsagePage() {
   const webPages = useMemo(() => pages.filter((page) => getUsageEntryType(page) === 'web'), [pages])
   const aiApps = useMemo(() => pages.filter((page) => getUsageEntryType(page) === 'ai'), [pages])
   const day = data ? getBrowserUsageDay(data, selectedDate) : null
+  const webTotalSeconds = webPages.reduce((total, page) => total + page.totalSeconds, 0)
   const aiTotalSeconds = aiApps.reduce((total, page) => total + page.totalSeconds, 0)
-  const aiServiceCount = new Set(aiApps.map((page) => getUsageDisplayDomain(page))).size
-  const domainCount = new Set(pages.map((page) => getUsageDisplayDomain(page))).size
   const topEntry = pages[0]
+  const webPercent = day ? getUsagePercent(webTotalSeconds, day.totalSeconds) : 0
+  const aiPercent = day ? getUsagePercent(aiTotalSeconds, day.totalSeconds) : 0
+  const topPercent = day && topEntry ? getUsagePercent(topEntry.totalSeconds, day.totalSeconds) : 0
 
   if (!data || !day) {
     return <LoadingState />
@@ -67,8 +69,8 @@ export function BrowserUsagePage() {
           <div className="mt-3 text-sm text-slate-500">{data.appSettings.browserTrackingEnabled ? '正在记录前台网页和 AI 应用' : '不会继续写入新的时间记录'}</div>
         </Card>
         <Metric icon={<Clock3 size={22} />} label="总时长" value={formatUsageDuration(day.totalSeconds)} />
-        <Metric icon={<Globe2 size={22} />} label="网页域名" value={`${domainCount}`} />
-        <Metric icon={<Bot size={22} />} label="AI 服务" value={`${aiServiceCount}`} />
+        <Metric icon={<Globe2 size={22} />} label="网页占比" value={`${webPercent}%`} />
+        <Metric icon={<Bot size={22} />} label="AI 占比" value={`${aiPercent}%`} />
       </div>
 
       <div className="grid grid-cols-[320px_1fr] gap-4">
@@ -85,9 +87,9 @@ export function BrowserUsagePage() {
           <input className="form-input mt-5" type="date" value={selectedDate} max={todayKey} onChange={(event) => setSelectedDate(event.target.value)} />
           <div className="mt-5 grid gap-3">
             <InfoRow label="统计日期" value={selectedDate} />
-            <InfoRow label="网页条目" value={`${webPages.length} 个`} />
-            <InfoRow label="AI 总时间" value={formatUsageDuration(aiTotalSeconds)} />
-            <InfoRow label="最长使用" value={topEntry ? getUsageDisplayDomain(topEntry) : '暂无记录'} />
+            <InfoRow label="网页条目" value={`${webPages.length} · ${webPercent}%`} />
+            <InfoRow label="AI 总时间" value={`${formatUsageDuration(aiTotalSeconds)} · ${aiPercent}%`} />
+            <InfoRow label="最高占比" value={topEntry ? `${getUsageDisplayDomain(topEntry)} · ${topPercent}%` : '暂无记录'} />
             <InfoRow label="累计时间" value={formatUsageDuration(day.totalSeconds)} />
           </div>
         </Card>
@@ -95,7 +97,7 @@ export function BrowserUsagePage() {
         <Card>
           <div className="flex items-center justify-between">
             <div className="text-2xl font-semibold text-slate-900">使用明细</div>
-            <span className="text-sm text-slate-500">{formatUsageDuration(day.totalSeconds)}</span>
+            <span className="text-sm text-slate-500">按占比排序 · {formatUsageDuration(day.totalSeconds)}</span>
           </div>
           <div className="mt-5 space-y-3">
             {pages.length ? pages.map((page) => {
@@ -116,10 +118,16 @@ export function BrowserUsagePage() {
                       <div className="mt-1 truncate text-lg font-semibold text-slate-900">{displayTitle}</div>
                       <div className="mt-1 truncate text-sm text-slate-500">{displayDomain}</div>
                     </div>
-                    <span className="shrink-0 text-lg font-semibold text-slate-900">{formatUsageDuration(page.totalSeconds)}</span>
+                    <div className="shrink-0 text-right">
+                      <div className="text-2xl font-semibold text-slate-900">{usagePercent}%</div>
+                      <div className="mt-1 text-xs text-slate-500">{formatUsageDuration(page.totalSeconds)}</div>
+                    </div>
                   </div>
                   <ProgressBar className="mt-3" value={usagePercent} accentClassName={isWeb ? 'bg-blue-500' : 'bg-violet-500'} />
-                  <div className="mt-2 truncate text-xs text-slate-400">{isWeb ? page.url : '不保存 AI 对话标题或具体链接'}</div>
+                  <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-400">
+                    <span className="truncate">{isWeb ? page.url : '不保存 AI 对话标题或具体链接'}</span>
+                    <span className="shrink-0 font-medium text-slate-500">占比 {usagePercent}%</span>
+                  </div>
                 </div>
               )
             }) : (
