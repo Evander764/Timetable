@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
-import { Bot, CalendarDays, Clock3, Globe2, Save } from 'lucide-react'
+import { Bot, CalendarDays, ChevronDown, Clock3, Globe2, Save } from 'lucide-react'
 import { Button } from '@renderer/components/Button'
 import { Card } from '@renderer/components/Card'
 import { EmptyState } from '@renderer/components/EmptyState'
@@ -20,11 +20,14 @@ import {
 } from '@shared/utils/browserUsage'
 import { formatDateKey } from '@shared/utils/date'
 
+const collapsedDetailCount = 3
+
 export function BrowserUsagePage() {
   const data = useAppStore((state) => state.data)
   const updateSettings = useAppStore((state) => state.updateSettings)
   const saveBrowserUsageDay = useAppStore((state) => state.saveBrowserUsageDay)
   const [selectedDate, setSelectedDate] = useState(() => formatDateKey(new Date()))
+  const [detailsExpanded, setDetailsExpanded] = useState(false)
   const todayKey = formatDateKey(new Date())
   const pages = useMemo(() => data ? getBrowserUsagePages(data, selectedDate) : [], [data, selectedDate])
   const webPages = useMemo(() => pages.filter((page) => getUsageEntryType(page) === 'web'), [pages])
@@ -36,9 +39,16 @@ export function BrowserUsagePage() {
   const webPercent = day ? getUsagePercent(webTotalSeconds, day.totalSeconds) : 0
   const aiPercent = day ? getUsagePercent(aiTotalSeconds, day.totalSeconds) : 0
   const topPercent = day && topEntry ? getUsagePercent(topEntry.totalSeconds, day.totalSeconds) : 0
+  const visiblePages = detailsExpanded ? pages : pages.slice(0, collapsedDetailCount)
+  const hiddenPageCount = Math.max(0, pages.length - visiblePages.length)
 
   if (!data || !day) {
     return <LoadingState />
+  }
+
+  function selectDate(date: string) {
+    setSelectedDate(date)
+    setDetailsExpanded(false)
   }
 
   return (
@@ -84,7 +94,7 @@ export function BrowserUsagePage() {
               <div className="text-sm text-slate-500">默认查看今天</div>
             </div>
           </div>
-          <input className="form-input mt-5" type="date" value={selectedDate} max={todayKey} onChange={(event) => setSelectedDate(event.target.value)} />
+          <input className="form-input mt-5" type="date" value={selectedDate} max={todayKey} onChange={(event) => selectDate(event.target.value)} />
           <div className="mt-5 grid gap-3">
             <InfoRow label="统计日期" value={selectedDate} />
             <InfoRow label="网页占比" value={`${webPercent}% · ${webPages.length} 项`} />
@@ -95,12 +105,26 @@ export function BrowserUsagePage() {
         </Card>
 
         <Card className="min-w-0 overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div className="text-2xl font-semibold text-slate-900">占比明细</div>
-            <span className="text-sm text-slate-500">按总使用时间占比排序 · 总使用 100%</span>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-2xl font-semibold text-slate-900">占比明细</div>
+              <div className="mt-1 text-sm text-slate-500">
+                按总使用时间占比排序，{detailsExpanded ? `已展开全部 ${pages.length} 项。` : `默认显示前 ${Math.min(collapsedDetailCount, pages.length)} 项。`}
+              </div>
+            </div>
+            {pages.length > collapsedDetailCount ? (
+              <button
+                type="button"
+                className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white/86 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:text-blue-600"
+                onClick={() => setDetailsExpanded((expanded) => !expanded)}
+              >
+                {detailsExpanded ? '收起明细' : `展开全部 ${pages.length} 项`}
+                <ChevronDown className={`transition-transform ${detailsExpanded ? 'rotate-180' : ''}`} size={16} />
+              </button>
+            ) : null}
           </div>
           <div className="mt-5 space-y-3">
-            {pages.length ? pages.map((page) => {
+            {pages.length ? visiblePages.map((page) => {
               const usageType = getUsageEntryType(page)
               const isWeb = usageType === 'web'
               const displayTitle = getUsageDisplayTitle(page)
@@ -133,6 +157,15 @@ export function BrowserUsagePage() {
             }) : (
               <EmptyState title="还没有使用记录" description="开启记录后，使用浏览器或 AI 工具时会自动生成当天统计。" />
             )}
+            {hiddenPageCount > 0 ? (
+              <button
+                type="button"
+                className="w-full rounded-[14px] border border-dashed border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-medium text-slate-500 transition hover:border-blue-200 hover:bg-blue-50/60 hover:text-blue-600"
+                onClick={() => setDetailsExpanded(true)}
+              >
+                还有 {hiddenPageCount} 项明细，点击展开查看
+              </button>
+            ) : null}
           </div>
         </Card>
       </div>
