@@ -286,13 +286,14 @@ export class AppStorage {
     const defaults = createDefaultAppData(this.filePath)
     const previousLayoutVersion = raw.appSettings?.desktopLayoutVersion
     const previousOpacityVersion = raw.appSettings?.opacityVersion
-    const normalized = normalizeCountdownStripWidget(migrateLegacyDesktopScale({
+    const normalized = migrateLegacyWidgetAutoHide(normalizeCountdownStripWidget(migrateLegacyDesktopScale({
       ...defaults,
       ...raw,
       courses: raw.courses ?? defaults.courses,
       dailyTasks: raw.dailyTasks ?? defaults.dailyTasks,
       longTermGoals: raw.longTermGoals ?? defaults.longTermGoals,
       memos: raw.memos ?? defaults.memos,
+      countdownEvents: raw.countdownEvents ?? defaults.countdownEvents,
       principleCard: normalizePrincipleCard({
         ...defaults.principleCard,
         ...raw.principleCard,
@@ -319,7 +320,7 @@ export class AppStorage {
         }),
       },
       browserUsage: raw.browserUsage ?? defaults.browserUsage,
-    }))
+    })), raw)
     return migrateOverlayOpacity(migrateDesktopThreePieceLayout(normalized, previousLayoutVersion), previousOpacityVersion)
   }
 
@@ -352,6 +353,28 @@ export class AppStorage {
 
   private getBrowserUsageAutoSavePath(date: string): string {
     return join(dirname(this.filePath), 'daily-usage', `timetable-usage-${date}.json`)
+  }
+}
+
+function migrateLegacyWidgetAutoHide(data: AppData, raw: Partial<AppData>): AppData {
+  if (raw.desktopSettings?.autoHide !== true) {
+    return data
+  }
+
+  const rawWidgets = raw.desktopSettings.widgets ?? {}
+  const widgets = Object.fromEntries(Object.entries(data.desktopSettings.widgets).map(([key, config]) => {
+    const rawConfig = rawWidgets[key as keyof typeof rawWidgets]
+    const autoHide = typeof rawConfig?.autoHide === 'boolean' ? rawConfig.autoHide : true
+    return [key, { ...config, autoHide }]
+  })) as AppData['desktopSettings']['widgets']
+
+  return {
+    ...data,
+    desktopSettings: {
+      ...data.desktopSettings,
+      autoHide: false,
+      widgets,
+    },
   }
 }
 

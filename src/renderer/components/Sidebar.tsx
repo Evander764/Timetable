@@ -10,10 +10,7 @@ export function Sidebar() {
         <div className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--color-primary)] text-white shadow-[0_8px_18px_rgba(22,119,255,0.24)]">
           <Waves size={21} strokeWidth={2.4} />
         </div>
-        <div>
-          <div className="text-[13px] font-medium text-slate-500">Timetable</div>
-          <div className="text-[18px] font-semibold text-slate-900">Timetable</div>
-        </div>
+        <div className="text-[18px] font-semibold text-slate-900">Timetable</div>
       </div>
 
       <nav className="flex-1 space-y-1.5">

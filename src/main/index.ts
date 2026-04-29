@@ -27,7 +27,7 @@ async function bootstrap(): Promise<void> {
   windows = new WindowManager(async (payload: OverlayWidgetUpdatePayload) => {
     const next = await storage.updateWidget(payload)
     windows.broadcastData(next)
-  }, () => storage.getData())
+  }, () => storage.getData(), () => storage.flush())
 
   browserUsageTracker = new BrowserUsageTracker({
     getData: () => storage.getData(),

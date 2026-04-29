@@ -6,7 +6,6 @@ import { Card } from '@renderer/components/Card'
 import { EmptyState } from '@renderer/components/EmptyState'
 import { LoadingState } from '@renderer/components/LoadingState'
 import { PageHeader } from '@renderer/components/PageHeader'
-import { ProgressBar } from '@renderer/components/ProgressBar'
 import { Toggle } from '@renderer/components/Toggle'
 import { useAppStore } from '@renderer/store/appStore'
 import {
@@ -130,6 +129,10 @@ export function BrowserUsagePage() {
               const displayTitle = getUsageDisplayTitle(page)
               const displayDomain = getUsageDisplayDomain(page)
               const usagePercent = getUsagePercent(page.totalSeconds, day.totalSeconds)
+              const usageBarStyle = {
+                width: `${usagePercent}%`,
+                minWidth: usagePercent > 0 ? 12 : 0,
+              }
               return (
                 <div key={page.url} className="min-w-0 rounded-[18px] border border-slate-200/80 bg-white/86 p-4">
                   <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_128px] items-start gap-4">
@@ -147,7 +150,15 @@ export function BrowserUsagePage() {
                       <div className="mt-1 text-xs text-slate-500">总占比</div>
                     </div>
                   </div>
-                  <ProgressBar className="mt-3 w-full" value={usagePercent} accentClassName={isWeb ? 'bg-blue-500' : 'bg-violet-500'} />
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="h-2 w-full max-w-[220px] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${isWeb ? 'bg-blue-500' : 'bg-violet-500'}`}
+                        style={usageBarStyle}
+                      />
+                    </div>
+                    <span className="shrink-0 text-xs font-medium text-slate-500">{usagePercent}%</span>
+                  </div>
                   <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-400">
                     <span className="min-w-0 truncate">{isWeb ? page.url : '不保存 AI 对话标题或具体链接'}</span>
                     <span className="shrink-0 font-medium text-slate-500">总使用 {usagePercent}%</span>

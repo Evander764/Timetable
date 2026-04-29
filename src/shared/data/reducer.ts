@@ -67,6 +67,10 @@ export function applyDataAction(data: AppData, action: DataAction): AppData {
             : memo,
         ),
       }
+    case 'countdownEvent/upsert':
+      return { ...data, countdownEvents: upsertById(data.countdownEvents, action.payload) }
+    case 'countdownEvent/delete':
+      return { ...data, countdownEvents: data.countdownEvents.filter((event) => event.id !== action.payload.id) }
     case 'principle/update':
       return { ...data, principleCard: { ...data.principleCard, ...action.payload } }
     case 'countdown/update':

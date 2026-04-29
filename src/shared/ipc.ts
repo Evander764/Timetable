@@ -22,6 +22,8 @@ export type DataAction =
   | { type: 'memo/upsert'; payload: AppData['memos'][number] }
   | { type: 'memo/delete'; payload: { id: string } }
   | { type: 'memo/end'; payload: { id: string; endedAt: string } }
+  | { type: 'countdownEvent/upsert'; payload: AppData['countdownEvents'][number] }
+  | { type: 'countdownEvent/delete'; payload: { id: string } }
   | { type: 'principle/update'; payload: Partial<PrincipleCard> }
   | { type: 'countdown/update'; payload: Partial<CountdownCard> }
 

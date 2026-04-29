@@ -165,6 +165,16 @@ export type CountdownCard = {
   opacity: number
 }
 
+export type CountdownEvent = {
+  id: string
+  title: string
+  targetDate: string
+  targetTime?: string
+  note?: string
+  color?: string
+  createdAt: string
+}
+
 export type BackgroundMeta = {
   path: string
   name: string
@@ -219,6 +229,7 @@ export type AppData = {
   memos: Memo[]
   principleCard: PrincipleCard
   countdownCard: CountdownCard
+  countdownEvents: CountdownEvent[]
   desktopSettings: DesktopSettings
   appSettings: AppSettings
   browserUsage: Record<string, BrowserUsageDay>

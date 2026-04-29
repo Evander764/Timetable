@@ -42,6 +42,8 @@ export function DesktopPanelPage() {
   }
 
   const appData = data
+  const widgetKeys = Object.keys(appData.desktopSettings.widgets) as WidgetKey[]
+  const allWidgetsAutoHide = widgetKeys.every((key) => Boolean(appData.desktopSettings.widgets[key].autoHide))
 
   async function setOverlayEnabled(enabled: boolean) {
     await updateSettings({ desktopSettings: { overlayEnabled: enabled } }, enabled ? '桌面面板已启用。' : '桌面面板已关闭。')
@@ -53,7 +55,7 @@ export function DesktopPanelPage() {
   }
 
   function setOpacityPreset(opacity: number) {
-    const widgets = (Object.keys(appData.desktopSettings.widgets) as WidgetKey[]).reduce((nextWidgets, key) => ({
+    const widgets = widgetKeys.reduce((nextWidgets, key) => ({
       ...nextWidgets,
       [key]: {
         ...appData.desktopSettings.widgets[key],
@@ -62,6 +64,21 @@ export function DesktopPanelPage() {
     }), {} as typeof appData.desktopSettings.widgets)
 
     void updateSettings({ desktopSettings: { opacity, widgets } }, '桌面卡片透明度预设已应用。')
+  }
+
+  function setAllWidgetsAutoHide(enabled: boolean) {
+    const widgets = widgetKeys.reduce((nextWidgets, key) => ({
+      ...nextWidgets,
+      [key]: {
+        ...appData.desktopSettings.widgets[key],
+        autoHide: enabled,
+      },
+    }), {} as typeof appData.desktopSettings.widgets)
+
+    void updateSettings(
+      { desktopSettings: { autoHide: enabled, widgets } },
+      enabled ? '所有卡片已开启贴边隐藏。' : '所有卡片已关闭贴边隐藏。',
+    )
   }
 
   function resetDesktopLayout() {
@@ -174,9 +191,9 @@ export function DesktopPanelPage() {
             </div>
             <ToggleRow
               label="自动贴边隐藏"
-              description="靠近边缘时收起为窄条，鼠标移入时展开。"
-              checked={data.desktopSettings.autoHide}
-              onChange={(checked) => void updateSettings({ desktopSettings: { autoHide: checked } }, '贴边隐藏设置已更新。')}
+              description="批量设置所有卡片；展开单张卡片后可以单独开关。"
+              checked={allWidgetsAutoHide}
+              onChange={setAllWidgetsAutoHide}
             />
             <SliderRow
               label="贴边收起延迟"
@@ -202,7 +219,7 @@ export function DesktopPanelPage() {
         <Card>
           <div className="text-[30px] font-semibold tracking-tight text-slate-900">桌面卡片</div>
           <div className="mt-5 space-y-3">
-            {(Object.keys(data.desktopSettings.widgets) as WidgetKey[]).map((key) => {
+            {widgetKeys.map((key) => {
               const config = data.desktopSettings.widgets[key]
               const sizeBase = WIDGET_SIZE_BASES[key]
               const sizePercent = getWidgetScalePercent(key, config)
@@ -263,6 +280,16 @@ export function DesktopPanelPage() {
                         </div>
                         <div className="text-right text-xl font-semibold text-slate-900">{Math.round(config.opacity * 100)}%</div>
                       </div>
+
+                      <ToggleRow
+                        label="本卡片贴边隐藏"
+                        description="只影响这一张桌面卡片，靠近屏幕边缘时收起。"
+                        checked={Boolean(config.autoHide)}
+                        onChange={(checked) => void updateWidget(
+                          { key, changes: { autoHide: checked } },
+                          checked ? '本卡片已开启贴边隐藏。' : '本卡片已关闭贴边隐藏。',
+                        )}
+                      />
                     </div>
                   ) : null}
                 </div>

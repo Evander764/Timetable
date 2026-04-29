@@ -272,6 +272,7 @@ export function createDefaultAppData(dataPath: string): AppData {
     dailyTasks: buildDefaultTasks(today),
     longTermGoals: buildDefaultGoals(today),
     memos: buildDefaultMemos(today),
+    countdownEvents: [],
     principleCard: {
       enabled: true,
       content: '真正的自由，不是随心所欲，\n而是自我主宰。',
