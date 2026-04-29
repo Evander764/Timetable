@@ -1,13 +1,23 @@
+import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
-import { Clock3, Eye } from 'lucide-react'
+import { CalendarDays, Clock3, Eye, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@renderer/components/Button'
 import { Card } from '@renderer/components/Card'
+import { EmptyState } from '@renderer/components/EmptyState'
 import { LoadingState } from '@renderer/components/LoadingState'
 import { PageHeader } from '@renderer/components/PageHeader'
 import { PositionPicker } from '@renderer/components/PositionPicker'
 import { ProgressBar } from '@renderer/components/ProgressBar'
 import { Toggle } from '@renderer/components/Toggle'
 import { useAppStore } from '@renderer/store/appStore'
+import type { CountdownEvent } from '@shared/types/app'
+import {
+  createBlankCountdownEvent,
+  getCountdownEventStatus,
+  getNextCountdownEvent,
+  getSortedCountdownEvents,
+  normalizeCountdownEventDraft,
+} from '@shared/utils/countdownEvents'
 import { getCompletionRate, getDayProgressBreakdown, getRemainingTimeToday } from '@shared/utils/tasks'
 
 export function CountdownPage() {
@@ -16,6 +26,9 @@ export function CountdownPage() {
   const updateWidget = useAppStore((state) => state.updateWidget)
   const snapWidgetPosition = useAppStore((state) => state.snapWidgetPosition)
   const [now, setNow] = useState(() => new Date())
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
+  const [eventDraft, setEventDraft] = useState<CountdownEvent>(() => createBlankCountdownEvent())
+  const [eventError, setEventError] = useState<string | null>(null)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
@@ -29,6 +42,55 @@ export function CountdownPage() {
   const countdownConfig = data.desktopSettings.widgets.countdown
   const breakdown = getDayProgressBreakdown(data.dailyTasks, now)
   const completionRate = getCompletionRate(data.dailyTasks, now)
+  const sortedEvents = getSortedCountdownEvents(data.countdownEvents, now)
+  const nextEvent = getNextCountdownEvent(data.countdownEvents, now)
+  const nextEventStatus = nextEvent ? getCountdownEventStatus(nextEvent, now) : null
+  const canSaveEvent = Boolean(eventDraft.title.trim() && eventDraft.targetDate.trim())
+  const fieldError = eventError ?? ((eventDraft.title || eventDraft.note) && !canSaveEvent ? '事件名称和目标日期都不能为空。' : null)
+
+  function startNewEvent() {
+    setSelectedEventId(null)
+    setEventDraft(createBlankCountdownEvent(now))
+    setEventError(null)
+  }
+
+  function selectEvent(event: CountdownEvent) {
+    setSelectedEventId(event.id)
+    setEventDraft(event)
+    setEventError(null)
+  }
+
+  async function saveEvent() {
+    if (!data) {
+      return
+    }
+
+    const result = normalizeCountdownEventDraft(eventDraft)
+    if (!result.event) {
+      setEventError(result.error)
+      return
+    }
+
+    const payload = result.event
+    await updateData({ type: 'countdownEvent/upsert', payload }, selectedEventId ? '倒计时事件已更新。' : '倒计时事件已创建。')
+    if (!countdownConfig.enabled) {
+      await updateWidget({ key: 'countdown', changes: { enabled: true } })
+      await updateData({ type: 'countdown/update', payload: { enabled: true } })
+    }
+    setEventDraft(payload)
+    setSelectedEventId(payload.id)
+    setEventError(null)
+  }
+
+  async function deleteEvent() {
+    if (!selectedEventId) {
+      startNewEvent()
+      return
+    }
+
+    await updateData({ type: 'countdownEvent/delete', payload: { id: selectedEventId } }, '倒计时事件已删除。')
+    startNewEvent()
+  }
 
   return (
     <div className="space-y-6">
@@ -55,6 +117,20 @@ export function CountdownPage() {
               <ProgressBar value={completionRate} />
             </div>
             <div className="mt-2 text-right text-sm text-slate-500">{completionRate}%</div>
+          </div>
+          <div className="mt-5 rounded-[18px] border border-blue-100 bg-blue-50/70 px-4 py-3">
+            <div className="text-sm text-blue-600">最近事件</div>
+            {nextEvent && nextEventStatus ? (
+              <div className="mt-2 min-w-0">
+                <div className="truncate text-xl font-semibold text-slate-900">{nextEvent.title}</div>
+                <div className="mt-1 flex items-center justify-between gap-3 text-sm text-slate-500">
+                  <span className="truncate">{nextEventStatus.targetLabel}</span>
+                  <span className="shrink-0 font-semibold text-blue-600">{nextEventStatus.remainingLabel}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2 text-sm text-slate-500">暂无未完成事件，桌面卡片将显示今日剩余时间。</div>
+            )}
           </div>
         </Card>
 
@@ -112,7 +188,115 @@ export function CountdownPage() {
           </Card>
         </div>
       </div>
+
+      <div className="grid grid-cols-[380px_1fr] gap-4">
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[30px] font-semibold tracking-tight text-slate-900">其他事件</div>
+              <div className="mt-1 text-sm text-slate-500">未完成事件优先显示，桌面卡片取最近一项。</div>
+            </div>
+            <Button size="sm" variant="primary" onClick={startNewEvent}>
+              <Plus size={16} />
+              新建
+            </Button>
+          </div>
+          <div className="mt-5 space-y-3">
+            {sortedEvents.length ? sortedEvents.map((event) => {
+              const status = getCountdownEventStatus(event, now)
+              return (
+                <button
+                  key={event.id}
+                  type="button"
+                  className={`w-full min-w-0 rounded-[18px] border p-4 text-left transition ${selectedEventId === event.id ? 'border-blue-300 bg-blue-50/85' : 'border-slate-200/80 bg-white/88 hover:border-blue-200'}`}
+                  onClick={() => selectEvent(event)}
+                >
+                  <div className="flex min-w-0 items-center justify-between gap-3">
+                    <div className="min-w-0 truncate text-lg font-semibold text-slate-900">{event.title}</div>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${status.expired ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-600'}`}>
+                      {status.expired ? '已过期' : '未完成'}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-3 text-sm text-slate-500">
+                    <span className="min-w-0 truncate">{status.targetLabel}</span>
+                    <span className="shrink-0 font-medium text-blue-600">{status.remainingLabel}</span>
+                  </div>
+                </button>
+              )
+            }) : (
+              <EmptyState title="暂无其他事件" description="可以添加考试、项目节点、生日等倒计时。" />
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm text-slate-500">事件详情</div>
+              <div className="mt-1 truncate text-3xl font-semibold tracking-tight text-slate-900">{eventDraft.title || '未命名事件'}</div>
+            </div>
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-600">
+              <CalendarDays size={22} />
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-5">
+            <Field label="事件名称">
+              <input className="form-input" value={eventDraft.title} onChange={(event) => {
+                setEventError(null)
+                setEventDraft({ ...eventDraft, title: event.target.value })
+              }} placeholder="例如：期末考试" />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="目标日期">
+                <input className="form-input" type="date" value={eventDraft.targetDate} onChange={(event) => {
+                  setEventError(null)
+                  setEventDraft({ ...eventDraft, targetDate: event.target.value })
+                }} />
+              </Field>
+              <Field label="目标时间（可选）">
+                <input className="form-input" type="time" value={eventDraft.targetTime ?? ''} onChange={(event) => {
+                  setEventError(null)
+                  setEventDraft({ ...eventDraft, targetTime: event.target.value || undefined })
+                }} />
+              </Field>
+            </div>
+            <Field label="颜色">
+              <input className="form-input h-12" type="color" value={eventDraft.color ?? '#2563EB'} onChange={(event) => setEventDraft({ ...eventDraft, color: event.target.value })} />
+            </Field>
+            <Field label="备注">
+              <textarea className="form-textarea min-h-[120px]" value={eventDraft.note ?? ''} onChange={(event) => {
+                setEventError(null)
+                setEventDraft({ ...eventDraft, note: event.target.value })
+              }} placeholder="例如：提前 30 分钟到场" />
+            </Field>
+          </div>
+
+          {fieldError ? (
+            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+              {fieldError}
+            </div>
+          ) : null}
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button className="flex-1" onClick={startNewEvent}>重置</Button>
+            <Button variant="primary" className="flex-1" onClick={() => void saveEvent()} disabled={!canSaveEvent}>保存事件</Button>
+            <Button variant="danger" onClick={() => void deleteEvent()}>
+              <Trash2 size={18} />
+            </Button>
+          </div>
+        </Card>
+      </div>
     </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <div className="mb-2 text-sm font-medium text-slate-500">{label}</div>
+      {children}
+    </label>
   )
 }
 

@@ -1,22 +1,35 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
-import { ChevronDown, LayoutPanelTop, MonitorSmartphone, PanelBottomOpen } from 'lucide-react'
+import { ChevronDown, LayoutPanelTop, MonitorSmartphone, PanelBottomOpen, RotateCcw } from 'lucide-react'
 import { Button } from '@renderer/components/Button'
 import { Card } from '@renderer/components/Card'
 import { LoadingState } from '@renderer/components/LoadingState'
 import { PageHeader } from '@renderer/components/PageHeader'
 import { Toggle } from '@renderer/components/Toggle'
 import { useAppStore } from '@renderer/store/appStore'
+import { createDefaultDesktopSettings } from '@shared/data/defaults'
 import type { WidgetKey } from '@shared/types/app'
-import { getWidgetScalePercent, resizeWidgetByScale, WIDGET_SIZE_BASES } from '@shared/utils/widgets'
+import {
+  DEFAULT_DESKTOP_AUTO_HIDE_DELAY_MS,
+  getWidgetScalePercent,
+  normalizeDesktopAutoHideDelayMs,
+  resizeWidgetByScale,
+  WIDGET_SIZE_BASES,
+} from '@shared/utils/widgets'
 
 const widgetMeta: Record<WidgetKey, { title: string; desc: string }> = {
-  mainPanel: { title: '主面板', desc: '日期与今日课程' },
-  dailyTasks: { title: '每日任务卡片', desc: '显示今日完成进度与任务清单' },
-  memo: { title: '进行中备忘', desc: '只展示 active 且允许桌面显示的备忘录' },
-  countdown: { title: '倒计时卡片', desc: '显示当天剩余时间与任务统计' },
-  principle: { title: '道理卡片', desc: '显示核心提醒文案与作者' },
+  mainPanel: { title: '主面板', desc: '日期、课程状态和今日行动中心。' },
+  dailyTasks: { title: '每日任务卡片', desc: '显示今日完成进度与任务清单。' },
+  memo: { title: '进行中备忘', desc: '展示正在进行且允许桌面显示的备忘。' },
+  countdown: { title: '倒计时卡片', desc: '显示当天剩余时间与任务统计。' },
+  principle: { title: '道理卡片', desc: '显示核心提醒文案与署名。' },
 }
+
+const opacityPresets = [
+  { label: '清晰', value: 0.98 },
+  { label: '半透明', value: 0.88 },
+  { label: '极简', value: 0.72 },
+]
 
 export function DesktopPanelPage() {
   const data = useAppStore((state) => state.data)
@@ -28,6 +41,10 @@ export function DesktopPanelPage() {
     return <LoadingState />
   }
 
+  const appData = data
+  const widgetKeys = Object.keys(appData.desktopSettings.widgets) as WidgetKey[]
+  const allWidgetsAutoHide = widgetKeys.every((key) => Boolean(appData.desktopSettings.widgets[key].autoHide))
+
   async function setOverlayEnabled(enabled: boolean) {
     await updateSettings({ desktopSettings: { overlayEnabled: enabled } }, enabled ? '桌面面板已启用。' : '桌面面板已关闭。')
     if (enabled) {
@@ -37,11 +54,59 @@ export function DesktopPanelPage() {
     }
   }
 
+  function setOpacityPreset(opacity: number) {
+    const widgets = widgetKeys.reduce((nextWidgets, key) => ({
+      ...nextWidgets,
+      [key]: {
+        ...appData.desktopSettings.widgets[key],
+        opacity,
+      },
+    }), {} as typeof appData.desktopSettings.widgets)
+
+    void updateSettings({ desktopSettings: { opacity, widgets } }, '桌面卡片透明度预设已应用。')
+  }
+
+  function setAllWidgetsAutoHide(enabled: boolean) {
+    const widgets = widgetKeys.reduce((nextWidgets, key) => ({
+      ...nextWidgets,
+      [key]: {
+        ...appData.desktopSettings.widgets[key],
+        autoHide: enabled,
+      },
+    }), {} as typeof appData.desktopSettings.widgets)
+
+    void updateSettings(
+      { desktopSettings: { autoHide: enabled, widgets } },
+      enabled ? '所有卡片已开启贴边隐藏。' : '所有卡片已关闭贴边隐藏。',
+    )
+  }
+
+  function resetDesktopLayout() {
+    const defaults = createDefaultDesktopSettings()
+    void updateSettings({
+      desktopSettings: {
+        ...appData.desktopSettings,
+        opacity: defaults.opacity,
+        scale: defaults.scale,
+        autoHide: defaults.autoHide,
+        dragLocked: defaults.dragLocked,
+        widgets: defaults.widgets,
+      },
+      appSettings: {
+        desktopAutoHideDelayMs: DEFAULT_DESKTOP_AUTO_HIDE_DELAY_MS,
+        desktopLayoutLockEnabled: false,
+      },
+    }, '桌面卡片布局已重置。')
+  }
+
+  const autoHideDelayMs = normalizeDesktopAutoHideDelayMs(data.appSettings.desktopAutoHideDelayMs)
+  const layoutLocked = data.appSettings.desktopLayoutLockEnabled || data.desktopSettings.dragLocked
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="桌面面板"
-        subtitle="管理桌面层的窗口模式、缩放、透明度与每张卡片的显示状态。"
+        subtitle="管理桌面卡片的位置、大小、贴边隐藏、透明度和锁定状态。"
         actions={
           <>
             <Button variant="primary" onClick={() => void window.timeable.showOverlay()}>
@@ -52,19 +117,23 @@ export function DesktopPanelPage() {
               <PanelBottomOpen size={18} />
               暂时隐藏
             </Button>
+            <Button onClick={resetDesktopLayout}>
+              <RotateCcw size={18} />
+              重置布局
+            </Button>
           </>
         }
       />
 
       <div className="grid grid-cols-3 gap-4">
         <SettingCard
-          title="桌面展示开关"
+          title="桌面显示开关"
           description="控制所有桌面卡片是否创建并显示。"
           control={<Toggle checked={data.desktopSettings.overlayEnabled} onCheckedChange={(checked) => void setOverlayEnabled(checked)} />}
         />
         <SettingCard
           title="窗口模式"
-          description="浮动模式始终置顶，桌面模式不置顶，更接近桌面挂件。"
+          description="悬浮模式始终置顶，桌面模式更接近桌面挂件。"
           control={
             <div className="flex gap-2">
               {[
@@ -108,15 +177,49 @@ export function DesktopPanelPage() {
               value={Math.round(data.desktopSettings.opacity * 100)}
               onChange={(value) => void updateSettings({ desktopSettings: { opacity: value / 100 } })}
             />
-            <ToggleRow label="自动贴边隐藏" description="靠近边缘时收起为窄条，鼠标移入时展开。" checked={data.desktopSettings.autoHide} onChange={(checked) => void updateSettings({ desktopSettings: { autoHide: checked } }, '贴边隐藏设置已更新。')} />
-            <ToggleRow label="拖拽锁定" description="锁定后仍可点击交互，但不允许拖动挂件。" checked={data.desktopSettings.dragLocked} onChange={(checked) => void updateSettings({ desktopSettings: { dragLocked: checked } }, '拖拽锁定状态已更新。')} />
+            <div className="grid grid-cols-3 gap-2">
+              {opacityPresets.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  className="rounded-lg border border-slate-200 bg-white/85 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:text-blue-600"
+                  onClick={() => setOpacityPreset(preset.value)}
+                >
+                  {preset.label} {Math.round(preset.value * 100)}%
+                </button>
+              ))}
+            </div>
+            <ToggleRow
+              label="自动贴边隐藏"
+              description="批量设置所有卡片；展开单张卡片后可以单独开关。"
+              checked={allWidgetsAutoHide}
+              onChange={setAllWidgetsAutoHide}
+            />
+            <SliderRow
+              label="贴边收起延迟"
+              value={autoHideDelayMs}
+              min={300}
+              max={3000}
+              step={100}
+              suffix="ms"
+              onChange={(value) => void updateSettings({ appSettings: { desktopAutoHideDelayMs: value } })}
+            />
+            <ToggleRow
+              label="锁定位置和大小"
+              description="锁定后不能拖动或改变大小，但仍可点击卡片内按钮。"
+              checked={layoutLocked}
+              onChange={(checked) => void updateSettings({
+                appSettings: { desktopLayoutLockEnabled: checked },
+                desktopSettings: { dragLocked: checked },
+              }, checked ? '桌面卡片已锁定。' : '桌面卡片已解锁。')}
+            />
           </div>
         </Card>
 
         <Card>
           <div className="text-[30px] font-semibold tracking-tight text-slate-900">桌面卡片</div>
           <div className="mt-5 space-y-3">
-            {(Object.keys(data.desktopSettings.widgets) as WidgetKey[]).map((key) => {
+            {widgetKeys.map((key) => {
               const config = data.desktopSettings.widgets[key]
               const sizeBase = WIDGET_SIZE_BASES[key]
               const sizePercent = getWidgetScalePercent(key, config)
@@ -142,7 +245,7 @@ export function DesktopPanelPage() {
 
                   <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
                     <span className="rounded-full bg-slate-50 px-2.5 py-1">位置 {Math.round(config.x)}, {Math.round(config.y)}</span>
-                    <span className="rounded-full bg-slate-50 px-2.5 py-1">尺寸 {Math.round(config.width)} × {Math.round(config.height)}</span>
+                    <span className="rounded-full bg-slate-50 px-2.5 py-1">尺寸 {Math.round(config.width)} x {Math.round(config.height)}</span>
                     <span className="rounded-full bg-slate-50 px-2.5 py-1">透明度 {Math.round(config.opacity * 100)}%</span>
                   </div>
 
@@ -177,6 +280,16 @@ export function DesktopPanelPage() {
                         </div>
                         <div className="text-right text-xl font-semibold text-slate-900">{Math.round(config.opacity * 100)}%</div>
                       </div>
+
+                      <ToggleRow
+                        label="本卡片贴边隐藏"
+                        description="只影响这一张桌面卡片，靠近屏幕边缘时收起。"
+                        checked={Boolean(config.autoHide)}
+                        onChange={(checked) => void updateWidget(
+                          { key, changes: { autoHide: checked } },
+                          checked ? '本卡片已开启贴边隐藏。' : '本卡片已关闭贴边隐藏。',
+                        )}
+                      />
                     </div>
                   ) : null}
                 </div>
@@ -223,7 +336,7 @@ function ToggleRow({
   onChange: (checked: boolean) => void
 }) {
   return (
-    <div className="flex items-center justify-between rounded-[20px] border border-slate-200/80 bg-white/85 px-4 py-4">
+    <div className="flex items-center justify-between gap-4 rounded-[20px] border border-slate-200/80 bg-white/85 px-4 py-4">
       <div>
         <div className="text-lg font-semibold text-slate-900">{label}</div>
         <div className="mt-1 text-sm text-slate-500">{description}</div>
@@ -239,20 +352,24 @@ function SliderRow({
   onChange,
   min = 30,
   max = 100,
+  step = 1,
+  suffix = '%',
 }: {
   label: string
   value: number
   onChange: (value: number) => void
   min?: number
   max?: number
+  step?: number
+  suffix?: string
 }) {
   return (
     <div className="rounded-[20px] border border-slate-200/80 bg-white/85 px-4 py-4">
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold text-slate-900">{label}</div>
-        <div className="text-2xl font-semibold text-slate-900">{value}%</div>
+        <div className="text-2xl font-semibold text-slate-900">{value}{suffix}</div>
       </div>
-      <input className="mt-4 w-full accent-[var(--color-primary)]" type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} />
+      <input className="mt-4 w-full accent-[var(--color-primary)]" type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { app, BrowserWindow, Menu, nativeImage, screen, shell, Tray } from 'elec
 import type { Rectangle } from 'electron/main'
 import type { AppData, WidgetKey } from '@shared/types/app'
 import type { OverlayWidgetUpdatePayload, WindowStatePayload } from '@shared/ipc'
+import { getEffectiveOverlayOpacity, normalizeDesktopAutoHideDelayMs } from '@shared/utils/widgets'
 
 type OverlayRuntimeState = {
   hidden: boolean
@@ -19,7 +20,6 @@ const rendererHtml = join(__dirname, '../renderer/index.html')
 const preloadPath = join(__dirname, '../preload/index.mjs')
 const AUTO_HIDE_THRESHOLD = 40
 const AUTO_HIDE_STRIP = 22
-const AUTO_HIDE_COLLAPSE_DELAY_MS = 420
 const AUTO_HIDE_POINTER_MARGIN = 8
 const PROGRAMMATIC_BOUNDS_SUPPRESS_MS = 180
 const MAIN_WINDOW_DEFAULT_WIDTH = 1180
@@ -27,6 +27,8 @@ const MAIN_WINDOW_DEFAULT_HEIGHT = 760
 const MAIN_WINDOW_MIN_WIDTH = 1024
 const MAIN_WINDOW_MIN_HEIGHT = 660
 const MAIN_WINDOW_SCREEN_MARGIN = 64
+const EMBEDDED_TRAY_ICON =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAARNSURBVFhHxVf/U1RVFN+f6l/oj9jdt0Fo7ttddhLYVgzbpjVUHEoKJEoRMgMl5YuWEUboMiAWJRaRopmLOI6wghLgl7CaSKaxNPui2KDbWjr5w6c5B95r37vv7Sw2DWfmM3PvPeedc+6958t9FkuSFAwGH5Akt89qd4askhyxSfKE1S7HCDyW5AjxSIZk9d/fN6WleR+yOlzNVskZtdqdSAok63A107d6fUmT3+9/0CbJNTZJvi0YSBL0LekgXXr9CYk8t9nlYb3C+wXpSvo0rCluu83uvKpX8l9BOm2pHpvenoamd56ccWf6Irz5QRde3d4k8MxAuk1Pgu98Fsfe2PU5xu6A8VxppcA3A9kwjAkKFr1wImxt26c6MPjbTSwvWifImIFsaYzz0c8y2qUUD0o2bsXSVS9hWWEpTl+PwpOxRJAzAtnSXAXnuYGgAq/vKeQWrMGKojJkB/PhSHELMlVNbXwt/kAesnKWkRFBRgOHq5mNU9UyKzIZ2UvxyfAY+n+aRMfgGbT3DeHQhYvIfaGU+b4ly7El1I7D33yPruELOHXtFnZ0fobwt5cwdCPG45Q0r6CXITmjXDFnyqsg8PAjXhy/9AvWVtfD7nBpeIuDz6Kt9yQiV2+gtrUDgRWFvOOGjw+htLqeZea7fNh36ize/uigoFsB2bZwbTdg5q0ux+GvJjRr5BSlXv+VSZTV7RB2V1BehT3HBtT5Ao8fpyejwgbiELLMNBE9g1Prw/5hdb7o6XyEx3/AroO9mCdnCfIE12NPYODXKXVOgTp6664gp0KSI5R+EwLD7oQn80mM3LyDtAUZfMSkuKBskyCnx7nY3+qOKXC7z48LMgrItmW6pYpMwnvHB1G3uwMnf/6dlen5FJTtJ4Y0ayQre7N53Dl0HsUVdcJ3/0KOJXSA7pAUmhUZIwd6vvuR07B8WyNnRuJ0lP8wvQLCG+93crT3XLyMzMW5At8IfZevIT0rwA54fQGBH4/pKzAJwkfdj3MAzXNmYnVFDadczjOrBDk9Rqb+ROr8hcK6ISgIzdJwZcl6dH4xpplTIFY0NJumFTlNBSh+zUx2BiHTQtR0IIxzt++hpmWvukaZsXdgFN1fjhvGRV5xOfNpTO2arm5k6i92Xi9L4EJkVIrJazJOne5s7J5a+90ZOVwDKB2pSFFZfrGyTo36ynda8frOPTwuXL9Z7ZZtRyOCcbUUmzUjpd/vPHBUXdtQH+Jyq8ypOe3u6edOSM5Q4Xp3fxgtR05wtaQqeCZ6F/kvbxAdUJpRonbsSE3XzCktqeG4F+Zo1inV1tU28AmUbNqGoteq+bRYh0HnFNoxUbIPko2NrdwZ4xVTulG9oCallzeC8CAhSvZJRrulY/909Gs8/0oV1m55C31XrmPN5u2CrBFMn2REs3mUFlfUoiXch13dvQisLBL4Rkj4KFVoTp/lCs3pj4lCc/prFk9z9nOqp//r9/wfQtP3O42Xv4kAAAAASUVORK5CYII='
 
 function loadRoute(window: BrowserWindow, hash: string): Promise<void> {
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -34,6 +36,23 @@ function loadRoute(window: BrowserWindow, hash: string): Promise<void> {
   }
 
   return window.loadFile(rendererHtml, { hash: `/${hash}` })
+}
+
+function createAppIcon(size: number): Electron.NativeImage {
+  const candidates = [
+    join(__dirname, '../renderer/tray-icon.png'),
+    join(__dirname, '../renderer/favicon.png'),
+    join(__dirname, '../renderer/favicon.ico'),
+    join(__dirname, '../renderer/favicon.svg'),
+  ]
+  const fileImage = candidates.map((path) => nativeImage.createFromPath(path)).find((image) => !image.isEmpty())
+  const image = fileImage ?? nativeImage.createFromDataURL(EMBEDDED_TRAY_ICON)
+
+  if (image.isEmpty()) {
+    return image
+  }
+
+  return image.resize({ width: size, height: size })
 }
 
 export class WindowManager {
@@ -47,6 +66,7 @@ export class WindowManager {
   constructor(
     private readonly onOverlayBoundsChanged: (payload: OverlayWidgetUpdatePayload) => Promise<void>,
     private readonly getData?: () => AppData,
+    private readonly flushBeforeQuit?: () => Promise<void>,
   ) {}
 
   async createMainWindow(): Promise<BrowserWindow> {
@@ -62,6 +82,7 @@ export class WindowManager {
       height: initialSize.height,
       minWidth: initialSize.minWidth,
       minHeight: initialSize.minHeight,
+      icon: createAppIcon(32),
       frame: false,
       titleBarStyle: 'hidden',
       backgroundColor: '#EDF4FF',
@@ -98,9 +119,7 @@ export class WindowManager {
       return
     }
 
-    const trayIcon = nativeImage.createFromPath(join(__dirname, '../renderer/tray-icon.png'))
-    const fallbackIcon = nativeImage.createFromPath(join(__dirname, '../renderer/favicon.svg'))
-    const image = trayIcon.isEmpty() ? fallbackIcon : trayIcon.resize({ width: 16, height: 16 })
+    const image = createAppIcon(16)
     this.tray = new Tray(image)
     this.tray.setToolTip('Timetable')
     this.tray.on('click', () => void this.showMainWindow())
@@ -123,6 +142,7 @@ export class WindowManager {
       { label: `退出方式：${trayOnlyQuitEnabled ? '仅托盘退出' : '按关闭按钮设置'}`, enabled: false },
       { label: `关闭按钮：${trayOnlyQuitEnabled || closeAction === 'hide' ? '隐藏到托盘' : '退出程序'}`, enabled: false },
       { type: 'separator' },
+      { label: '重启应用', click: () => void this.restartApplication() },
       { label: '彻底退出', click: () => void this.quitApplication() },
     ])
     this.tray.setContextMenu(contextMenu)
@@ -229,6 +249,20 @@ export class WindowManager {
 
   async quitApplication(): Promise<void> {
     this.isQuitting = true
+    await this.flushBeforeQuit?.()
+    this.tray?.destroy()
+    this.tray = null
+    for (const key of [...this.overlayWindows.keys()]) {
+      this.destroyOverlayWindow(key)
+    }
+    this.mainWindow?.destroy()
+    app.quit()
+  }
+
+  async restartApplication(): Promise<void> {
+    this.isQuitting = true
+    await this.flushBeforeQuit?.()
+    app.relaunch()
     this.tray?.destroy()
     this.tray = null
     for (const key of [...this.overlayWindows.keys()]) {
@@ -264,7 +298,7 @@ export class WindowManager {
     }
 
     const config = data.desktopSettings.widgets[key]
-    const shouldAutoHide = config.autoHide || data.desktopSettings.autoHide
+    const shouldAutoHide = Boolean(config.autoHide)
     if (!shouldAutoHide) {
       return
     }
@@ -291,7 +325,8 @@ export class WindowManager {
       frame: false,
       transparent: true,
       hasShadow: false,
-      resizable: isOverlayUserResizable(key),
+      resizable: isOverlayUserResizable(key) && !this.isOverlayLayoutLocked(key, data),
+      movable: isOverlayUserMovable() && !this.isOverlayLayoutLocked(key, data),
       skipTaskbar: true,
       show: false,
       backgroundColor: '#00000000',
@@ -304,7 +339,8 @@ export class WindowManager {
 
     window.on('will-move', (event, newBounds) => {
       const runtime = this.overlayState.get(key)
-      if (runtime?.hidden) {
+      const currentData = this.latestData ?? data
+      if (runtime?.hidden || this.isOverlayLayoutLocked(key, currentData)) {
         event.preventDefault()
         return
       }
@@ -327,6 +363,12 @@ export class WindowManager {
       this.queueOverlayBoundsSync(key, undefined, false, 'move')
     })
     window.on('resized', () => {
+      const currentData = this.latestData ?? data
+      if (this.isOverlayLayoutLocked(key, currentData)) {
+        this.setOverlayBounds(key, this.withConfiguredOverlaySize(key, window.getBounds()))
+        return
+      }
+
       const runtime = this.overlayState.get(key)
       const resizedDuringMove = Boolean(runtime?.suppressResizeUntil && Date.now() < runtime.suppressResizeUntil)
       this.queueOverlayBoundsSync(key, undefined, resizedDuringMove, resizedDuringMove ? 'move' : 'resize')
@@ -361,7 +403,7 @@ export class WindowManager {
     })
     window.setIgnoreMouseEvents(false)
     window.setAlwaysOnTop(data.desktopSettings.overlayMode === 'floating' && data.desktopSettings.alwaysOnTop, 'screen-saver')
-    window.setOpacity(clampOpacity(config.opacity * data.desktopSettings.opacity))
+    window.setOpacity(getEffectiveOverlayOpacity(config.opacity, data.desktopSettings.opacity))
 
     if (runtime.hidden) {
       runtime.expandedBounds ??= configuredBounds
@@ -386,8 +428,9 @@ export class WindowManager {
 
   private restoreOverlayWindowConstraints(window: BrowserWindow, key: WidgetKey, data: AppData): void {
     window.setMinimumSize(getOverlayMinWidth(key), getOverlayMinHeight(key))
-    window.setResizable(isOverlayUserResizable(key))
-    window.setMovable(isOverlayUserMovable() && !this.isOverlayDragLocked(key, data))
+    const layoutLocked = this.isOverlayLayoutLocked(key, data)
+    window.setResizable(isOverlayUserResizable(key) && !layoutLocked)
+    window.setMovable(isOverlayUserMovable() && !layoutLocked)
   }
 
   private scheduleOverlayCollapse(key: WidgetKey, data: AppData): void {
@@ -407,7 +450,7 @@ export class WindowManager {
       }
 
       const config = currentData.desktopSettings.widgets[key]
-      const shouldAutoHide = config.autoHide || currentData.desktopSettings.autoHide
+      const shouldAutoHide = Boolean(config.autoHide)
       if (!shouldAutoHide) {
         return
       }
@@ -432,7 +475,7 @@ export class WindowManager {
       window.setResizable(false)
       window.setMovable(false)
       this.setOverlayBounds(key, getHiddenOverlayBounds(bounds, display, edge), false)
-    }, AUTO_HIDE_COLLAPSE_DELAY_MS)
+    }, normalizeDesktopAutoHideDelayMs(data.appSettings.desktopAutoHideDelayMs))
   }
 
   private withConfiguredOverlaySize(key: WidgetKey, bounds: Rectangle): Rectangle {
@@ -531,14 +574,10 @@ export class WindowManager {
     }
   }
 
-  private isOverlayDragLocked(key: WidgetKey, data: AppData): boolean {
+  private isOverlayLayoutLocked(key: WidgetKey, data: AppData): boolean {
     const config = data.desktopSettings.widgets[key]
-    return data.desktopSettings.dragLocked || Boolean(config.dragLocked)
+    return data.appSettings.desktopLayoutLockEnabled || data.desktopSettings.dragLocked || Boolean(config.dragLocked)
   }
-}
-
-function clampOpacity(value: number): number {
-  return Math.max(0.2, Math.min(1, value))
 }
 
 function isOverlayUserResizable(key: WidgetKey): boolean {
