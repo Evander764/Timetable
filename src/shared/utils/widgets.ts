@@ -1,5 +1,9 @@
 import type { AppData, WidgetConfig, WidgetKey } from '@shared/types/app'
 
+export const OVERLAY_OPACITY_VERSION = 3
+export const DEFAULT_OVERLAY_OPACITY = 0.98
+export const DEFAULT_DESKTOP_AUTO_HIDE_DELAY_MS = 800
+
 type WidgetSizeBase = {
   width: number
   height: number
@@ -88,7 +92,7 @@ export function normalizeCountdownStripWidget(data: AppData): AppData {
 }
 
 export function migrateOverlayOpacity(data: AppData, previousOpacityVersion?: number): AppData {
-  if (previousOpacityVersion && previousOpacityVersion >= 2) {
+  if (previousOpacityVersion && previousOpacityVersion >= OVERLAY_OPACITY_VERSION) {
     return data
   }
 
@@ -97,7 +101,7 @@ export function migrateOverlayOpacity(data: AppData, previousOpacityVersion?: nu
       key,
       {
         ...config,
-        opacity: Math.max(config.opacity ?? 0, key === 'countdown' ? 0.96 : 0.94),
+        opacity: Math.max(config.opacity ?? 0, DEFAULT_OVERLAY_OPACITY),
       },
     ]),
   ) as Record<WidgetKey, WidgetConfig>
@@ -106,22 +110,35 @@ export function migrateOverlayOpacity(data: AppData, previousOpacityVersion?: nu
     ...data,
     principleCard: {
       ...data.principleCard,
-      opacity: Math.max(data.principleCard.opacity ?? 0, 0.94),
+      opacity: Math.max(data.principleCard.opacity ?? 0, DEFAULT_OVERLAY_OPACITY),
     },
     countdownCard: {
       ...data.countdownCard,
-      opacity: Math.max(data.countdownCard.opacity ?? 0, 0.96),
+      opacity: Math.max(data.countdownCard.opacity ?? 0, DEFAULT_OVERLAY_OPACITY),
     },
     desktopSettings: {
       ...data.desktopSettings,
-      opacity: Math.max(data.desktopSettings.opacity ?? 0, 0.96),
+      opacity: Math.max(data.desktopSettings.opacity ?? 0, DEFAULT_OVERLAY_OPACITY),
       widgets,
     },
     appSettings: {
       ...data.appSettings,
-      opacityVersion: 2,
+      opacityVersion: OVERLAY_OPACITY_VERSION,
     },
   }
+}
+
+export function getEffectiveOverlayOpacity(widgetOpacity?: number, desktopOpacity?: number): number {
+  return clamp(Math.min(normalizeOpacity(widgetOpacity), normalizeOpacity(desktopOpacity)), 0.2, 1)
+}
+
+export function normalizeDesktopAutoHideDelayMs(value: unknown): number {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_DESKTOP_AUTO_HIDE_DELAY_MS
+  }
+
+  return clamp(Math.round(parsed), 300, 3000)
 }
 
 export function migrateDesktopThreePieceLayout(data: AppData, previousLayoutVersion?: number): AppData {
@@ -168,4 +185,12 @@ export function migrateDesktopThreePieceLayout(data: AppData, previousLayoutVers
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
+}
+
+function normalizeOpacity(value?: number): number {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return 1
+  }
+
+  return clamp(value, 0, 1)
 }

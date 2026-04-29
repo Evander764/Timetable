@@ -85,14 +85,14 @@ textarea {
 }
 
 .glass-card {
-  border: 1px solid rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.36);
   border-radius: 18px;
   background:
-    linear-gradient(180deg, rgba(248, 252, 255, 0.78), rgba(234, 244, 255, 0.58));
+    linear-gradient(180deg, rgba(248, 252, 255, 0.96), rgba(234, 244, 255, 0.9));
   box-shadow:
-    0 14px 34px rgba(19, 35, 63, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.64);
-  backdrop-filter: blur(22px);
+    0 14px 34px rgba(19, 35, 63, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(18px);
 }
 
 .sidebar-link {
@@ -125,6 +125,79 @@ textarea {
 
 .no-drag {
   -webkit-app-region: no-drag;
+}
+
+.overlay-tool-button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #64748b;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.overlay-tool-button:hover,
+.overlay-tool-button-active {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-primary);
+}
+
+.overlay-tool-button:active {
+  transform: scale(0.96);
+}
+
+.overlay-card-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  min-width: 148px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(16px);
+}
+
+.overlay-card-menu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  color: #334155;
+  text-align: left;
+}
+
+.overlay-card-menu button:hover {
+  background: rgba(47, 116, 255, 0.08);
+  color: var(--color-primary-deep);
+}
+
+.countdown-strip-button {
+  width: 100%;
+  border: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.countdown-card-edge,
+.countdown-strip-edge {
+  border-radius: 10px;
+  border-color: rgba(125, 154, 202, 0.36);
+  box-shadow:
+    0 10px 26px rgba(19, 35, 63, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.68);
+}
+
+.countdown-strip-edge {
+  min-height: 46px;
 }
 
 .form-input,

@@ -4,7 +4,7 @@ import { dialog, type BrowserWindow } from 'electron'
 import type { AppData, BrowserPageSample } from '@shared/types/app'
 import type { BackupInfo, DataAction, ExportDataResult, OverlayWidgetUpdatePayload, SettingsUpdatePayload } from '@shared/ipc'
 import { createDefaultAppData } from '@shared/data/defaults'
-import { applyDataAction, applyOverlayWidgetUpdate, applySettingsUpdate } from '@shared/data/reducer'
+import { applyDataAction, applyOverlayWidgetUpdate, applySettingsUpdate, normalizeAppSettings } from '@shared/data/reducer'
 import { formatDateKey } from '@shared/utils/date'
 import { createBrowserUsageDaySnapshot, normalizeBrowserPageSample, recordBrowserUsageSample } from '@shared/utils/browserUsage'
 import { normalizeCourseTimeSlots, normalizeTermWeekCount } from '@shared/utils/course'
@@ -286,13 +286,14 @@ export class AppStorage {
     const defaults = createDefaultAppData(this.filePath)
     const previousLayoutVersion = raw.appSettings?.desktopLayoutVersion
     const previousOpacityVersion = raw.appSettings?.opacityVersion
-    const normalized = normalizeCountdownStripWidget(migrateLegacyDesktopScale({
+    const normalized = migrateLegacyWidgetAutoHide(normalizeCountdownStripWidget(migrateLegacyDesktopScale({
       ...defaults,
       ...raw,
       courses: raw.courses ?? defaults.courses,
       dailyTasks: raw.dailyTasks ?? defaults.dailyTasks,
       longTermGoals: raw.longTermGoals ?? defaults.longTermGoals,
       memos: raw.memos ?? defaults.memos,
+      countdownEvents: raw.countdownEvents ?? defaults.countdownEvents,
       principleCard: normalizePrincipleCard({
         ...defaults.principleCard,
         ...raw.principleCard,
@@ -310,14 +311,16 @@ export class AppStorage {
         },
       },
       appSettings: {
-        ...defaults.appSettings,
-        ...raw.appSettings,
-        dataPath: this.filePath,
-        termWeekCount: normalizeTermWeekCount(raw.appSettings?.termWeekCount ?? defaults.appSettings.termWeekCount),
-        timetableSlots: normalizeCourseTimeSlots(raw.appSettings?.timetableSlots ?? defaults.appSettings.timetableSlots),
+        ...normalizeAppSettings({
+          ...defaults.appSettings,
+          ...raw.appSettings,
+          dataPath: this.filePath,
+          termWeekCount: normalizeTermWeekCount(raw.appSettings?.termWeekCount ?? defaults.appSettings.termWeekCount),
+          timetableSlots: normalizeCourseTimeSlots(raw.appSettings?.timetableSlots ?? defaults.appSettings.timetableSlots),
+        }),
       },
       browserUsage: raw.browserUsage ?? defaults.browserUsage,
-    }))
+    })), raw)
     return migrateOverlayOpacity(migrateDesktopThreePieceLayout(normalized, previousLayoutVersion), previousOpacityVersion)
   }
 
@@ -350,6 +353,28 @@ export class AppStorage {
 
   private getBrowserUsageAutoSavePath(date: string): string {
     return join(dirname(this.filePath), 'daily-usage', `timetable-usage-${date}.json`)
+  }
+}
+
+function migrateLegacyWidgetAutoHide(data: AppData, raw: Partial<AppData>): AppData {
+  if (raw.desktopSettings?.autoHide !== true) {
+    return data
+  }
+
+  const rawWidgets = raw.desktopSettings.widgets ?? {}
+  const widgets = Object.fromEntries(Object.entries(data.desktopSettings.widgets).map(([key, config]) => {
+    const rawConfig = rawWidgets[key as keyof typeof rawWidgets]
+    const autoHide = typeof rawConfig?.autoHide === 'boolean' ? rawConfig.autoHide : true
+    return [key, { ...config, autoHide }]
+  })) as AppData['desktopSettings']['widgets']
+
+  return {
+    ...data,
+    desktopSettings: {
+      ...data.desktopSettings,
+      autoHide: false,
+      widgets,
+    },
   }
 }
 

@@ -1,6 +1,8 @@
-import type { AppData, WidgetKey } from '@shared/types/app'
+import type { AppData, AppSettings, WidgetKey } from '@shared/types/app'
 import type { DataAction, OverlayWidgetUpdatePayload, SettingsUpdatePayload } from '@shared/ipc'
+import { normalizeCourseReminderMinutes } from '@shared/utils/course'
 import { advanceGoalStage } from '@shared/utils/goals'
+import { normalizeDesktopAutoHideDelayMs } from '@shared/utils/widgets'
 
 function upsertById<T extends { id: string }>(items: T[], value: T): T[] {
   const index = items.findIndex((item) => item.id === value.id)
@@ -65,6 +67,10 @@ export function applyDataAction(data: AppData, action: DataAction): AppData {
             : memo,
         ),
       }
+    case 'countdownEvent/upsert':
+      return { ...data, countdownEvents: upsertById(data.countdownEvents, action.payload) }
+    case 'countdownEvent/delete':
+      return { ...data, countdownEvents: data.countdownEvents.filter((event) => event.id !== action.payload.id) }
     case 'principle/update':
       return { ...data, principleCard: { ...data.principleCard, ...action.payload } }
     case 'countdown/update':
@@ -91,10 +97,10 @@ export function applySettingsUpdate(data: AppData, payload: SettingsUpdatePayloa
   if (payload.appSettings) {
     nextData = {
       ...nextData,
-      appSettings: {
+      appSettings: normalizeAppSettings({
         ...nextData.appSettings,
         ...payload.appSettings,
-      },
+      }),
     }
   }
 
@@ -119,6 +125,16 @@ export function applySettingsUpdate(data: AppData, payload: SettingsUpdatePayloa
   }
 
   return nextData
+}
+
+export function normalizeAppSettings(settings: AppSettings): AppSettings {
+  return {
+    ...settings,
+    courseReminderEnabled: settings.courseReminderEnabled !== false,
+    courseReminderMinutes: normalizeCourseReminderMinutes(settings.courseReminderMinutes),
+    desktopAutoHideDelayMs: normalizeDesktopAutoHideDelayMs(settings.desktopAutoHideDelayMs),
+    desktopLayoutLockEnabled: Boolean(settings.desktopLayoutLockEnabled),
+  }
 }
 
 export function applyOverlayWidgetUpdate(data: AppData, payload: OverlayWidgetUpdatePayload): AppData {

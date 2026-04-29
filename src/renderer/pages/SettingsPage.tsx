@@ -5,6 +5,7 @@ import { LoadingState } from '@renderer/components/LoadingState'
 import { PageHeader } from '@renderer/components/PageHeader'
 import { Toggle } from '@renderer/components/Toggle'
 import { useAppStore } from '@renderer/store/appStore'
+import type { WidgetKey } from '@shared/types/app'
 
 export function SettingsPage() {
   const data = useAppStore((state) => state.data)
@@ -16,9 +17,24 @@ export function SettingsPage() {
     return <LoadingState />
   }
 
+  const appData = data
   const backgroundPreview = data.desktopSettings.backgroundImage
     ? window.timeable.filePathToUrl(data.desktopSettings.backgroundImage)
     : defaultBackground
+  const widgetKeys = Object.keys(appData.desktopSettings.widgets) as WidgetKey[]
+  const allWidgetsAutoHide = widgetKeys.every((key) => Boolean(appData.desktopSettings.widgets[key].autoHide))
+
+  function setAllWidgetsAutoHide(enabled: boolean) {
+    const widgets = widgetKeys.reduce((nextWidgets, key) => ({
+      ...nextWidgets,
+      [key]: {
+        ...appData.desktopSettings.widgets[key],
+        autoHide: enabled,
+      },
+    }), {} as typeof appData.desktopSettings.widgets)
+
+    void updateSettings({ desktopSettings: { autoHide: enabled, widgets } })
+  }
 
   return (
     <div className="space-y-6">
@@ -49,8 +65,8 @@ export function SettingsPage() {
         />
         <SettingTile
           title="自动贴边隐藏"
-          description="桌面卡片靠近屏幕边缘时自动收起。"
-          control={<Toggle checked={data.desktopSettings.autoHide} onCheckedChange={(checked) => void updateSettings({ desktopSettings: { autoHide: checked } })} />}
+          description="批量设置所有桌面卡片；单张卡片可在桌面面板或卡片菜单里单独开关。"
+          control={<Toggle checked={allWidgetsAutoHide} onCheckedChange={setAllWidgetsAutoHide} />}
         />
       </div>
 
