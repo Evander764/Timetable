@@ -1,8 +1,8 @@
-import type { TimetableApi } from '@shared/ipc'
+import type { TimeableApi } from '@shared/ipc'
 
 declare global {
   interface Window {
-    timeable: TimetableApi
+    timeable: TimeableApi
   }
 }
 

@@ -19,17 +19,20 @@ import { useAppStore } from '@renderer/store/appStore'
 function Boot() {
   const load = useAppStore((state) => state.load)
   const setData = useAppStore((state) => state.setData)
+  const applyDataPatch = useAppStore((state) => state.applyDataPatch)
   const setWindowState = useAppStore((state) => state.setWindowState)
 
   useEffect(() => {
     void load()
     const removeDataListener = window.timeable.onDataChanged((data) => setData(data))
+    const removePatchListener = window.timeable.onDataPatched((patch) => applyDataPatch(patch))
     const removeWindowStateListener = window.timeable.onWindowStateChanged((payload) => setWindowState(payload))
     return () => {
       removeDataListener()
+      removePatchListener()
       removeWindowStateListener()
     }
-  }, [load, setData, setWindowState])
+  }, [load, setData, applyDataPatch, setWindowState])
 
   return null
 }
@@ -44,10 +47,10 @@ export default function App() {
           <Route element={<ShellLayout />}>
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<OverviewPage />} />
-            <Route path="/browser-usage" element={<BrowserUsagePage />} />
             <Route path="/desktop-panel" element={<DesktopPanelPage />} />
             <Route path="/schedule" element={<SchedulePage />} />
             <Route path="/daily-tasks" element={<DailyTasksPage />} />
+            <Route path="/browser-usage" element={<BrowserUsagePage />} />
             <Route path="/long-term-goals" element={<LongTermGoalsPage />} />
             <Route path="/memos" element={<MemosPage />} />
             <Route path="/countdown" element={<CountdownPage />} />

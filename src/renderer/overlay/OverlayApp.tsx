@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { LoadingState } from '@renderer/components/LoadingState'
 import { useAppStore } from '@renderer/store/appStore'
+import { cn } from '@renderer/utils/cn'
 import type { WidgetKey } from '@shared/types/app'
 import { CountdownWidget } from './CountdownWidget'
 import { DailyTaskWidget } from './DailyTaskWidget'
@@ -21,11 +21,6 @@ export function OverlayApp() {
   const { widgetKey } = useParams()
   const data = useAppStore((state) => state.data)
 
-  useEffect(() => {
-    document.body.classList.add('overlay-window')
-    return () => document.body.classList.remove('overlay-window')
-  }, [])
-
   if (!data || !widgetKey || !(widgetKey in widgetMap)) {
     return (
       <div className="overlay-root">
@@ -38,7 +33,11 @@ export function OverlayApp() {
   const Widget = widgetMap[key]
 
   return (
-    <div className="overlay-root" onMouseEnter={() => window.timeable.overlayHover(key, true)} onMouseLeave={() => window.timeable.overlayHover(key, false)}>
+    <div
+      className={cn('overlay-root', key === 'countdown' && 'overlay-root--compact')}
+      onMouseEnter={() => window.timeable.overlayHover(key, true)}
+      onMouseLeave={() => window.timeable.overlayHover(key, false)}
+    >
       <Widget data={data} />
     </div>
   )

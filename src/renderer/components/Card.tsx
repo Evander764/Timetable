@@ -7,7 +7,7 @@ type CardProps = PropsWithChildren<HTMLAttributes<HTMLDivElement>> & {
 
 export function Card({ className, padded = true, children, ...props }: CardProps) {
   return (
-    <div className={cn('panel-card', padded && 'p-[18px]', className)} {...props}>
+    <div className={cn('panel-card', padded && 'p-[14px]', className)} {...props}>
       {children}
     </div>
   )

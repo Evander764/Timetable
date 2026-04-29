@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom'
-import { Copy, Minus, Square, X } from 'lucide-react'
+import { Minus, Square, SquareStack, X } from 'lucide-react'
 import { Button } from '@renderer/components/Button'
 import { navTitleMap } from '@renderer/routes/navigation'
 import { useAppStore } from '@renderer/store/appStore'
@@ -9,16 +9,16 @@ export function TitleBar() {
   const isMaximized = useAppStore((state) => state.isMaximized)
   const title = navTitleMap[location.pathname] ?? 'Timetable'
   const controlClass =
-    'h-9 w-11 rounded-lg border border-slate-200/90 bg-white/75 p-0 text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-950 active:scale-[0.98]'
+    'h-8 w-12 rounded-md border border-transparent bg-transparent p-0 text-slate-700 transition hover:bg-slate-100 hover:text-slate-950 active:bg-slate-200'
 
   return (
-    <header className="drag-region flex h-[60px] items-center justify-between border-b border-slate-200/70 bg-white/68 px-5 backdrop-blur-xl">
+    <header className="drag-region flex h-[52px] items-center justify-between border-b border-slate-200/70 bg-white/68 px-4 backdrop-blur-xl">
       <div>
         <div className="text-xs text-slate-500">Timetable 控制中心</div>
-        <div className="text-[18px] font-semibold text-slate-900">{title}</div>
+        <div className="text-[16px] font-semibold text-slate-900">{title}</div>
       </div>
 
-      <div className="no-drag flex items-center gap-2">
+      <div className="no-drag flex items-center gap-1">
         <Button
           size="sm"
           variant="ghost"
@@ -37,7 +37,7 @@ export function TitleBar() {
           aria-label={isMaximized ? '还原窗口' : '最大化'}
           onClick={() => void window.timeable.windowControl('maximize')}
         >
-          {isMaximized ? <Copy size={16} strokeWidth={2.3} /> : <Square size={15} strokeWidth={2.4} />}
+          {isMaximized ? <SquareStack size={15} strokeWidth={2.2} /> : <Square size={14} strokeWidth={2.3} />}
         </Button>
         <Button
           size="sm"

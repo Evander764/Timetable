@@ -7,7 +7,7 @@ export function getDashboardStats(data: AppData, today: Date): DashboardStats {
   return {
     completionRate: getCompletionRate(data.dailyTasks, today),
     pendingTaskCount: getRemainingTaskCount(data.dailyTasks, today),
-    todayCourseCount: getCoursesForDate(data.courses, today, data.appSettings.termStartDate, data.appSettings.termWeekCount).length,
+    todayCourseCount: getCoursesForDate(data.courses, today, data.appSettings.termStartDate).length,
     activeGoalCount: getActiveGoalCount(data.longTermGoals),
   }
 }

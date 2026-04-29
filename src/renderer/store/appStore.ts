@@ -1,9 +1,10 @@
 import { create } from 'zustand'
+import { applyDataPatch } from '@shared/data/reducer'
 import type { AppData } from '@shared/types/app'
 import type {
-  BackupInfo,
+  AppDataPatch,
   DataAction,
-  GithubUpdateInfo,
+  DataBackupSummary,
   OverlaySnapPositionPayload,
   OverlayWidgetUpdatePayload,
   SettingsUpdatePayload,
@@ -21,10 +22,11 @@ type AppStore = {
   data: AppData | null
   loaded: boolean
   isMaximized: boolean
+  dataBackups: DataBackupSummary[]
+  backupsLoading: boolean
   toasts: Toast[]
-  backups: BackupInfo[]
-  updateInfo: GithubUpdateInfo | null
   setData: (data: AppData) => void
+  applyDataPatch: (patch: AppDataPatch) => void
   setLoaded: (loaded: boolean) => void
   setWindowState: (payload: WindowStatePayload) => void
   pushToast: (message: string, tone?: Toast['tone']) => void
@@ -37,12 +39,8 @@ type AppStore = {
   setStartup: (enabled: boolean) => Promise<void>
   selectBackground: () => Promise<void>
   exportData: () => Promise<void>
-  createBackup: () => Promise<void>
-  loadBackups: () => Promise<void>
-  restoreBackup: (filePath?: string) => Promise<void>
-  openBackupDir: () => Promise<void>
-  checkForUpdate: (silent?: boolean) => Promise<void>
-  installUpdate: () => Promise<void>
+  loadDataBackups: () => Promise<void>
+  restoreDataBackup: (id: string) => Promise<void>
   saveBrowserUsageDay: (date: string) => Promise<void>
 }
 
@@ -54,10 +52,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
   data: null,
   loaded: false,
   isMaximized: false,
+  dataBackups: [],
+  backupsLoading: false,
   toasts: [],
-  backups: [],
-  updateInfo: null,
   setData: (data) => set({ data }),
+  applyDataPatch: (patch) => {
+    set((state) => (state.data ? { data: applyDataPatch(state.data, patch) } : {}))
+  },
   setLoaded: (loaded) => set({ loaded }),
   setWindowState: (payload) => set({ isMaximized: payload.isMaximized }),
   pushToast: (message, tone = 'success') => {
@@ -172,78 +173,27 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().pushToast('导出数据失败。', 'error')
     }
   },
-  createBackup: async () => {
+  loadDataBackups: async () => {
+    set({ backupsLoading: true })
     try {
-      const backup = await window.timeable.createBackup()
-      const data = await window.timeable.loadData()
-      set((state) => ({
-        data,
-        backups: [backup, ...state.backups.filter((item) => item.filePath !== backup.filePath)],
-      }))
-      get().pushToast(`备份已创建：${backup.name}`)
+      const dataBackups = await window.timeable.listDataBackups()
+      set({ dataBackups })
     } catch (error) {
       console.error(error)
-      get().pushToast('创建备份失败。', 'error')
+      get().pushToast('读取自动备份失败。', 'error')
+    } finally {
+      set({ backupsLoading: false })
     }
   },
-  loadBackups: async () => {
+  restoreDataBackup: async (id) => {
     try {
-      const backups = await window.timeable.listBackups()
-      set({ backups })
+      const data = await window.timeable.restoreDataBackup(id)
+      set({ data })
+      await get().loadDataBackups()
+      get().pushToast('已从备份恢复数据。')
     } catch (error) {
       console.error(error)
-      get().pushToast('读取备份列表失败。', 'error')
-    }
-  },
-  restoreBackup: async (filePath) => {
-    try {
-      const result = await window.timeable.restoreBackup(filePath)
-      if (result.canceled) {
-        return
-      }
-      if (result.data) {
-        set({ data: result.data })
-      }
-      await get().loadBackups()
-      get().pushToast('数据已从备份恢复。')
-    } catch (error) {
-      console.error(error)
-      get().pushToast('恢复备份失败。', 'error')
-    }
-  },
-  openBackupDir: async () => {
-    try {
-      await window.timeable.openBackupDir()
-    } catch (error) {
-      console.error(error)
-      get().pushToast('打开备份目录失败。', 'error')
-    }
-  },
-  checkForUpdate: async (silent = false) => {
-    try {
-      const updateInfo = await window.timeable.checkForUpdate()
-      set({ updateInfo })
-      if (updateInfo.available && !updateInfo.error) {
-        get().pushToast(`发现新版本 v${updateInfo.latestVersion}。`, 'info')
-      } else if (!silent) {
-        get().pushToast(updateInfo.error ? `检查更新失败：${updateInfo.error}` : '当前已经是最新版本。', updateInfo.error ? 'error' : 'success')
-      }
-    } catch (error) {
-      console.error(error)
-      if (!silent) {
-        get().pushToast('检查更新失败。', 'error')
-      }
-    }
-  },
-  installUpdate: async () => {
-    try {
-      const result = await window.timeable.installUpdate()
-      if (!result.started) {
-        get().pushToast(result.error ?? '没有可安装的新版本。', 'error')
-      }
-    } catch (error) {
-      console.error(error)
-      get().pushToast('安装更新失败。', 'error')
+      get().pushToast('恢复备份失败，当前数据未更改。', 'error')
     }
   },
   saveBrowserUsageDay: async (date) => {

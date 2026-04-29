@@ -8,7 +8,7 @@ export function ShellLayout() {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <TitleBar />
-        <main className="min-h-0 flex-1 overflow-auto px-7 py-6">
+        <main className="min-h-0 flex-1 overflow-auto px-4 py-4">
           <Outlet />
         </main>
       </div>

@@ -1,7 +1,22 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import type { AppData, BrowserPageSample } from '@shared/types/app'
-import { getAiUsageServiceForUrl, isAdsPowerProcess } from '@shared/utils/browserUsage'
+import type { AppDataPatch } from '@shared/ipc'
+import type { AppData } from '@shared/types/app'
+import { normalizeBrowserPageSample, type NormalizedBrowserPageSample } from '@shared/utils/browserUsage'
+
+type BrowserUsageTrackerServices = {
+  getData: () => AppData
+  recordUsage: (sample: NormalizedBrowserPageSample, durationSeconds: number) => Promise<AppDataPatch>
+  onDataPatched: (patch: AppDataPatch) => void
+}
+
+type ActiveBrowserWindow = {
+  isBrowser?: boolean
+  processName?: string
+  browser?: string
+  title?: string
+  url?: string
+}
 
 const execFileAsync = promisify(execFile)
 const POWERSHELL_TIMEOUT_MS = 3500
@@ -23,6 +38,27 @@ const BROWSER_LABELS: Record<string, string> = {
   adspower_global: 'AdsPower',
 }
 
+type AiAppDefinition = {
+  id: string
+  label: string
+  processNames?: string[]
+  titlePatterns?: RegExp[]
+}
+
+type AiWebService = {
+  id: string
+  label: string
+  domains: string[]
+}
+
+const AI_WEB_SERVICES: AiWebService[] = [
+  { id: 'chatgpt', label: 'ChatGPT', domains: ['chatgpt.com', 'chat.openai.com'] },
+  { id: 'kimi', label: 'Kimi', domains: ['kimi.moonshot.cn', 'kimi.com', 'moonshot.cn'] },
+  { id: 'deepseek', label: 'DeepSeek', domains: ['chat.deepseek.com', 'deepseek.com'] },
+  { id: 'gemini', label: 'Gemini', domains: ['gemini.google.com', 'bard.google.com'] },
+  { id: 'claude', label: 'Claude', domains: ['claude.ai'] },
+]
+
 const TERMINAL_PROCESS_NAMES = new Set([
   'windowsterminal',
   'windows terminal',
@@ -37,12 +73,7 @@ const TERMINAL_PROCESS_NAMES = new Set([
   'tabby',
 ])
 
-const AI_APP_DEFINITIONS: Array<{
-  id: string
-  label: string
-  processNames?: string[]
-  titlePatterns?: RegExp[]
-}> = [
+const AI_APP_DEFINITIONS: AiAppDefinition[] = [
   { id: 'codex', label: 'Codex', processNames: ['codex'], titlePatterns: [/\bcodex\b/i] },
   { id: 'claude-code', label: 'Claude Code', titlePatterns: [/\bclaude\s+code\b/i] },
   { id: 'claude', label: 'Claude', processNames: ['claude desktop', 'claude'], titlePatterns: [/\bclaude\b/i] },
@@ -69,7 +100,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
-public static class TimetableWin32 {
+public static class TimeableWin32 {
   [DllImport("user32.dll")]
   public static extern IntPtr GetForegroundWindow();
 
@@ -81,13 +112,13 @@ public static class TimetableWin32 {
 }
 "@
 
-function Write-TimetableJson($payload) {
+function Write-TimeableJson($payload) {
   $payload | ConvertTo-Json -Compress -Depth 5
 }
 
 function Get-WindowTitle($handle) {
   $builder = New-Object System.Text.StringBuilder 1024
-  [void][TimetableWin32]::GetWindowText($handle, $builder, $builder.Capacity)
+  [void][TimeableWin32]::GetWindowText($handle, $builder, $builder.Capacity)
   return $builder.ToString()
 }
 
@@ -114,17 +145,17 @@ function Looks-LikeUrl($value) {
 }
 
 try {
-  $handle = [TimetableWin32]::GetForegroundWindow()
+  $handle = [TimeableWin32]::GetForegroundWindow()
   if ($handle -eq [IntPtr]::Zero) {
-    Write-TimetableJson @{ isBrowser = $false }
+    Write-TimeableJson @{ isBrowser = $false }
     exit 0
   }
 
   [uint32]$processId = 0
-  [void][TimetableWin32]::GetWindowThreadProcessId($handle, [ref]$processId)
+  [void][TimeableWin32]::GetWindowThreadProcessId($handle, [ref]$processId)
   $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
   if ($null -eq $process) {
-    Write-TimetableJson @{ isBrowser = $false }
+    Write-TimeableJson @{ isBrowser = $false }
     exit 0
   }
 
@@ -143,7 +174,7 @@ try {
   }
 
   if (-not $browserMap.ContainsKey($processName)) {
-    Write-TimetableJson @{
+    Write-TimeableJson @{
       isBrowser = $false
       processName = $processName
       title = Get-WindowTitle $handle
@@ -170,7 +201,7 @@ try {
     }
   }
 
-  Write-TimetableJson @{
+  Write-TimeableJson @{
     isBrowser = $true
     processName = $processName
     browser = $browserMap[$processName]
@@ -178,31 +209,17 @@ try {
     url = $url
   }
 } catch {
-  Write-TimetableJson @{
+  Write-TimeableJson @{
     isBrowser = $false
     error = $_.Exception.Message
   }
 }
 `
 
-type ActiveWindowInfo = {
-  isBrowser?: boolean
-  processName?: string
-  browser?: string
-  title?: string
-  url?: string | null
-}
-
-type BrowserUsageTrackerServices = {
-  getData: () => AppData
-  recordUsage: (sample: BrowserPageSample, durationSeconds: number) => Promise<AppData>
-  onDataChanged: (data: AppData) => void
-}
-
 export class BrowserUsageTracker {
   private timer?: NodeJS.Timeout
   private running = false
-  private previousSample: BrowserPageSample | null = null
+  private previousSample: NormalizedBrowserPageSample | null = null
   private previousSampleAt = 0
 
   constructor(private readonly services: BrowserUsageTrackerServices) {}
@@ -244,10 +261,9 @@ export class BrowserUsageTracker {
           Math.max(intervalSeconds * 2.5, intervalSeconds + 3),
           MAX_RECORDED_SAMPLE_SECONDS,
         )
-
         if (elapsedSeconds >= 1) {
-          const nextData = await this.services.recordUsage(this.previousSample, elapsedSeconds)
-          this.services.onDataChanged(nextData)
+          const patch = await this.services.recordUsage(this.previousSample, elapsedSeconds)
+          this.services.onDataPatched(patch)
         }
       }
 
@@ -270,22 +286,25 @@ export class BrowserUsageTracker {
   }
 }
 
-async function readActiveBrowserSample(): Promise<BrowserPageSample | null> {
+async function readActiveBrowserSample(): Promise<NormalizedBrowserPageSample | null> {
   if (process.platform !== 'win32') {
     return null
   }
 
   try {
-    const { stdout } = await execFileAsync(
-      'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', ACTIVE_BROWSER_SCRIPT],
-      {
-        encoding: 'utf8',
-        timeout: POWERSHELL_TIMEOUT_MS,
-        windowsHide: true,
-        maxBuffer: 1024 * 128,
-      },
-    )
+    const { stdout } = await execFileAsync('powershell.exe', [
+      '-NoProfile',
+      '-NonInteractive',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-Command',
+      ACTIVE_BROWSER_SCRIPT,
+    ], {
+      encoding: 'utf8',
+      timeout: POWERSHELL_TIMEOUT_MS,
+      windowsHide: true,
+      maxBuffer: 1024 * 128,
+    })
     const activeWindow = parseActiveBrowserWindow(stdout)
     if (!activeWindow) {
       return null
@@ -294,26 +313,37 @@ async function readActiveBrowserSample(): Promise<BrowserPageSample | null> {
     const processName = activeWindow.processName?.toLowerCase() ?? ''
     if (activeWindow.isBrowser && activeWindow.url) {
       const browser = activeWindow.browser ?? BROWSER_LABELS[processName] ?? processName
-      const aiWebService = isAdsPowerProcess(processName) ? null : getAiUsageServiceForUrl(activeWindow.url)
+      const aiWebService = detectAiWebService(activeWindow.url)
       if (aiWebService) {
-        return {
+        return normalizeBrowserPageSample({
           url: `app://ai/${aiWebService.id}`,
           title: aiWebService.label,
           browser: aiWebService.label,
           usageType: 'ai',
           processName,
           observedAt: new Date().toISOString(),
-        }
+        })
       }
 
-      return {
+      return normalizeBrowserPageSample({
         url: activeWindow.url,
         title: cleanBrowserTitle(activeWindow.title ?? '', browser),
         browser,
         usageType: 'web',
         processName,
         observedAt: new Date().toISOString(),
-      }
+      })
+    }
+
+    if (isAdsPowerProcess(processName)) {
+      return normalizeBrowserPageSample({
+        url: 'app://ai/claude',
+        title: 'Claude',
+        browser: 'Claude',
+        usageType: 'ai',
+        processName,
+        observedAt: new Date().toISOString(),
+      })
     }
 
     const aiApp = detectAiApp(activeWindow)
@@ -321,20 +351,20 @@ async function readActiveBrowserSample(): Promise<BrowserPageSample | null> {
       return null
     }
 
-    return {
+    return normalizeBrowserPageSample({
       url: `app://ai/${aiApp.id}`,
       title: aiApp.label,
       browser: aiApp.label,
       usageType: 'ai',
       processName,
       observedAt: new Date().toISOString(),
-    }
+    })
   } catch {
     return null
   }
 }
 
-function parseActiveBrowserWindow(output: string): ActiveWindowInfo | null {
+function parseActiveBrowserWindow(output: string): ActiveBrowserWindow | null {
   const start = output.indexOf('{')
   const end = output.lastIndexOf('}')
   if (start === -1 || end === -1 || end <= start) {
@@ -342,7 +372,7 @@ function parseActiveBrowserWindow(output: string): ActiveWindowInfo | null {
   }
 
   try {
-    return JSON.parse(output.slice(start, end + 1)) as ActiveWindowInfo
+    return JSON.parse(output.slice(start, end + 1)) as ActiveBrowserWindow
   } catch {
     return null
   }
@@ -355,12 +385,8 @@ function cleanBrowserTitle(title: string, browser: string): string {
     .trim()
 }
 
-function detectAiApp(activeWindow: ActiveWindowInfo): { id: string; label: string } | null {
+function detectAiApp(activeWindow: ActiveBrowserWindow): AiAppDefinition | null {
   const processName = activeWindow.processName?.toLowerCase().trim() ?? ''
-  if (isAdsPowerProcess(processName)) {
-    return null
-  }
-
   const title = activeWindow.title?.trim() ?? ''
   const haystack = `${processName} ${title}`
   const terminalWindow = TERMINAL_PROCESS_NAMES.has(processName)
@@ -372,6 +398,7 @@ function detectAiApp(activeWindow: ActiveWindowInfo): { id: string; label: strin
     if (app.processNames?.some((name) => name === processName)) {
       return app
     }
+
     if (app.titlePatterns?.some((pattern) => pattern.test(haystack))) {
       return app
     }
@@ -380,11 +407,26 @@ function detectAiApp(activeWindow: ActiveWindowInfo): { id: string; label: strin
   return null
 }
 
+function detectAiWebService(rawUrl: string): AiWebService | null {
+  const normalizedUrl = /^[a-z][a-z\d+.-]*:\/\//i.test(rawUrl.trim()) ? rawUrl.trim() : `https://${rawUrl.trim()}`
+  try {
+    const host = new URL(normalizedUrl).hostname.toLowerCase().replace(/^www\./, '')
+    return AI_WEB_SERVICES.find((service) => service.domains.some((domain) => host === domain || host.endsWith(`.${domain}`))) ?? null
+  } catch {
+    return null
+  }
+}
+
+function isAdsPowerProcess(processName: string): boolean {
+  return processName === 'adspower' || processName === 'adspower global' || processName === 'adspower_global'
+}
+
 function getSampleIntervalSeconds(data: AppData): number {
   const configured = data.appSettings.browserTrackingIntervalSeconds
   if (!Number.isFinite(configured)) {
     return DEFAULT_SAMPLE_INTERVAL_SECONDS
   }
+
   return Math.min(MAX_SAMPLE_INTERVAL_SECONDS, Math.max(MIN_SAMPLE_INTERVAL_SECONDS, Math.round(configured)))
 }
 

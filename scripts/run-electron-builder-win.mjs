@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const projectRoot = join(__dirname, '..')
-const aliasRoot = join(tmpdir(), 'timetable-builder-link')
+const aliasRoot = join(tmpdir(), 'timeable-builder-link')
 const args = process.argv.slice(2)
 const packageJson = JSON.parse(await readFile(join(projectRoot, 'package.json'), 'utf8'))
 const buildId = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)

@@ -1,6 +1,8 @@
 import type { AppData, WidgetKey } from '@shared/types/app'
-import type { DataAction, OverlayWidgetUpdatePayload, SettingsUpdatePayload } from '@shared/ipc'
+import type { AppDataPatch, DataAction, OverlayWidgetUpdatePayload, SettingsUpdatePayload } from '@shared/ipc'
 import { advanceGoalStage } from '@shared/utils/goals'
+
+type WidgetUpdateMap = Partial<Record<WidgetKey, Partial<AppData['desktopSettings']['widgets'][WidgetKey]>>>
 
 function upsertById<T extends { id: string }>(items: T[], value: T): T[] {
   const index = items.findIndex((item) => item.id === value.id)
@@ -9,6 +11,30 @@ function upsertById<T extends { id: string }>(items: T[], value: T): T[] {
   }
 
   return items.map((item, currentIndex) => (currentIndex === index ? value : item))
+}
+
+function mergeWidgets(
+  current: AppData['desktopSettings']['widgets'],
+  updates: WidgetUpdateMap | undefined,
+): AppData['desktopSettings']['widgets'] {
+  if (!updates) {
+    return current
+  }
+
+  const next = { ...current }
+  for (const [key, value] of Object.entries(updates)) {
+    const widgetKey = key as WidgetKey
+    const currentWidget = next[widgetKey]
+    if (!currentWidget || !value) {
+      continue
+    }
+    next[widgetKey] = {
+      ...currentWidget,
+      ...value,
+    }
+  }
+
+  return next
 }
 
 export function applyDataAction(data: AppData, action: DataAction): AppData {
@@ -65,6 +91,27 @@ export function applyDataAction(data: AppData, action: DataAction): AppData {
             : memo,
         ),
       }
+    case 'countdownItem/upsert':
+      return { ...data, countdownItems: upsertById(data.countdownItems, action.payload) }
+    case 'countdownItem/delete':
+      return {
+        ...data,
+        countdownItems: data.countdownItems.filter((item) => item.id !== action.payload.id),
+        countdownCard: data.countdownCard.pinnedItemId === action.payload.id
+          ? {
+              ...data.countdownCard,
+              pinnedItemId: undefined,
+            }
+          : data.countdownCard,
+      }
+    case 'countdownItem/pin':
+      return {
+        ...data,
+        countdownCard: {
+          ...data.countdownCard,
+          pinnedItemId: action.payload.id ?? undefined,
+        },
+      }
     case 'principle/update':
       return { ...data, principleCard: { ...data.principleCard, ...action.payload } }
     case 'countdown/update':
@@ -78,12 +125,13 @@ export function applySettingsUpdate(data: AppData, payload: SettingsUpdatePayloa
   let nextData = data
 
   if (payload.desktopSettings) {
+    const { widgets, ...desktopSettings } = payload.desktopSettings
     nextData = {
       ...nextData,
       desktopSettings: {
         ...nextData.desktopSettings,
-        ...payload.desktopSettings,
-        widgets: payload.desktopSettings.widgets ?? nextData.desktopSettings.widgets,
+        ...desktopSettings,
+        widgets: mergeWidgets(nextData.desktopSettings.widgets, widgets),
       },
     }
   }
@@ -135,5 +183,31 @@ export function applyOverlayWidgetUpdate(data: AppData, payload: OverlayWidgetUp
         },
       },
     },
+  }
+}
+
+export function applyDataPatch(data: AppData, patch: AppDataPatch): AppData {
+  switch (patch.type) {
+    case 'widget/replace':
+      return {
+        ...data,
+        desktopSettings: {
+          ...data.desktopSettings,
+          widgets: {
+            ...data.desktopSettings.widgets,
+            [patch.payload.key]: patch.payload.widget,
+          },
+        },
+      }
+    case 'browserUsage/dayReplace':
+      return {
+        ...data,
+        browserUsage: {
+          ...data.browserUsage,
+          [patch.payload.date]: patch.payload.day,
+        },
+      }
+    default:
+      return data
   }
 }

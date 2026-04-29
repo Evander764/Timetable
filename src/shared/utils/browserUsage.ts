@@ -1,19 +1,35 @@
-import type { AppData, BrowserPageSample, BrowserUsageDay, BrowserUsagePage, UsageEntryType } from '@shared/types/app'
-import { formatDateKey } from './date'
+import type { AppData, BrowserUsageDay, BrowserUsagePage, UsageEntryType } from '@shared/types/app'
+import { formatDateKey } from '@shared/utils/date'
 
-const PAGE_TITLE_MAX_LENGTH = 180
+export type BrowserPageSample = {
+  url: string
+  title?: string
+  browser: string
+  usageType?: UsageEntryType
+  processName?: string
+  observedAt: string
+}
 
-export const AI_USAGE_SERVICES = [
-  { id: 'chatgpt', label: 'ChatGPT', domains: ['chatgpt.com', 'chat.openai.com'] },
-  { id: 'kimi', label: 'Kimi', domains: ['kimi.moonshot.cn', 'kimi.com', 'moonshot.cn'] },
-  { id: 'deepseek', label: 'DeepSeek', domains: ['chat.deepseek.com', 'deepseek.com'] },
-  { id: 'gemini', label: 'Gemini', domains: ['gemini.google.com', 'bard.google.com'] },
-  { id: 'claude', label: 'Claude', domains: ['claude.ai'] },
-  { id: 'claude-code', label: 'Claude Code', domains: [] },
-  { id: 'codex', label: 'Codex', domains: [] },
-]
+export type NormalizedBrowserPageSample = BrowserPageSample & {
+  title: string
+  domain: string
+  usageType: UsageEntryType
+}
 
-export type BrowserUsageSnapshot = {
+export type BrowserUsageDaySnapshotEntry = {
+  type: UsageEntryType
+  title: string
+  source: string
+  url?: string
+  browser?: string
+  totalSeconds: number
+  duration: string
+  percent: number
+  firstSeenAt: string
+  lastSeenAt: string
+}
+
+export type BrowserUsageDaySnapshot = {
   schemaVersion: 1
   date: string
   savedAt: string
@@ -25,21 +41,21 @@ export type BrowserUsageSnapshot = {
   aiDuration: string
   webPageCount: number
   aiServiceCount: number
-  entries: Array<{
-    type: UsageEntryType
-    title: string
-    source: string
-    totalSeconds: number
-    duration: string
-    percent: number
-    firstSeenAt: string
-    lastSeenAt: string
-    url?: string
-    browser?: string
-  }>
+  entries: BrowserUsageDaySnapshotEntry[]
 }
 
-export function normalizeBrowserPageSample(sample: BrowserPageSample): (BrowserPageSample & { domain: string; usageType: UsageEntryType }) | null {
+const PAGE_TITLE_MAX_LENGTH = 180
+const AI_USAGE_SERVICES = [
+  { id: 'chatgpt', label: 'ChatGPT', domains: ['chatgpt.com', 'chat.openai.com'] },
+  { id: 'kimi', label: 'Kimi', domains: ['kimi.moonshot.cn', 'kimi.com', 'moonshot.cn'] },
+  { id: 'deepseek', label: 'DeepSeek', domains: ['chat.deepseek.com', 'deepseek.com'] },
+  { id: 'gemini', label: 'Gemini', domains: ['gemini.google.com', 'bard.google.com'] },
+  { id: 'claude', label: 'Claude', domains: ['claude.ai'] },
+  { id: 'claude-code', label: 'Claude Code', domains: [] },
+  { id: 'codex', label: 'Codex', domains: [] },
+] as const
+
+export function normalizeBrowserPageSample(sample: BrowserPageSample): NormalizedBrowserPageSample | null {
   const usageType = sample.usageType ?? 'web'
   const normalizedUrl = usageType === 'ai' ? normalizeAiUsageKey(sample.url, sample.browser) : normalizeBrowserUrl(sample.url)
   if (!normalizedUrl) {
@@ -57,7 +73,11 @@ export function normalizeBrowserPageSample(sample: BrowserPageSample): (BrowserP
   }
 }
 
-export function recordBrowserUsageSample(data: AppData, sample: BrowserPageSample & { domain: string; usageType: UsageEntryType }, durationSeconds: number): AppData {
+export function recordBrowserUsageSample(
+  data: AppData,
+  sample: NormalizedBrowserPageSample,
+  durationSeconds: number,
+): AppData {
   const seconds = Math.max(0, Math.round(durationSeconds))
   if (seconds === 0) {
     return data
@@ -115,16 +135,15 @@ export function getBrowserUsagePages(data: AppData, date: string): BrowserUsageP
   const aiPages = new Map<string, BrowserUsagePage>()
 
   Object.values(getBrowserUsageDay(data, date).pages).forEach((page) => {
-    const sourcePage = normalizeAdsPowerUsagePage(page)
-    if (getUsageEntryType(sourcePage) !== 'ai') {
-      webPages.push(sourcePage)
+    if (getUsageEntryType(page) !== 'ai') {
+      webPages.push(page)
       return
     }
 
-    const service = getAiUsageServiceForPage(sourcePage)
+    const service = getAiUsageServiceForPage(page)
     const key = `app://ai/${service.id}`
     const normalizedPage: BrowserUsagePage = {
-      ...sourcePage,
+      ...page,
       url: key,
       title: service.label,
       domain: service.label,
@@ -132,13 +151,18 @@ export function getBrowserUsagePages(data: AppData, date: string): BrowserUsageP
       usageType: 'ai',
     }
     const existingPage = aiPages.get(key)
+
     aiPages.set(key, existingPage ? mergeUsagePages(existingPage, normalizedPage) : normalizedPage)
   })
 
   return [...webPages, ...aiPages.values()].sort(sortUsagePages)
 }
 
-export function createBrowserUsageDaySnapshot(data: AppData, date: string, savedAt = new Date().toISOString()): BrowserUsageSnapshot {
+export function createBrowserUsageDaySnapshot(
+  data: AppData,
+  date: string,
+  savedAt = new Date().toISOString(),
+): BrowserUsageDaySnapshot {
   const day = getBrowserUsageDay(data, date)
   const pages = getBrowserUsagePages(data, date)
   const webPages = pages.filter((page) => getUsageEntryType(page) === 'web')
@@ -162,10 +186,10 @@ export function createBrowserUsageDaySnapshot(data: AppData, date: string, saved
   }
 }
 
-function createSnapshotEntry(page: BrowserUsagePage, dayTotalSeconds: number): BrowserUsageSnapshot['entries'][number] {
+function createSnapshotEntry(page: BrowserUsagePage, dayTotalSeconds: number): BrowserUsageDaySnapshotEntry {
   const type = getUsageEntryType(page)
   const isWeb = type === 'web'
-  const entry: BrowserUsageSnapshot['entries'][number] = {
+  const entry: BrowserUsageDaySnapshotEntry = {
     type,
     title: getUsageDisplayTitle(page),
     source: getUsageDisplayDomain(page),
@@ -188,6 +212,7 @@ function sortUsagePages(left: BrowserUsagePage, right: BrowserUsagePage): number
   if (right.totalSeconds !== left.totalSeconds) {
     return right.totalSeconds - left.totalSeconds
   }
+
   return right.lastSeenAt.localeCompare(left.lastSeenAt)
 }
 
@@ -237,57 +262,35 @@ function getAiUsageServiceForName(name: string): { id: string; label: string } |
     const serviceNames = [item.id, item.label, ...item.domains]
     return serviceNames.some((candidate) => normalizeServiceName(candidate) === normalizedName)
   })
+
   return service ? { id: service.id, label: service.label } : null
 }
 
-export function normalizeServiceName(name: string): string {
+function normalizeServiceName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '')
 }
 
-export function getUsagePercent(totalSeconds: number, dayTotalSeconds: number): number {
+function getUsagePercent(totalSeconds: number, dayTotalSeconds: number): number {
   if (dayTotalSeconds <= 0 || totalSeconds <= 0) {
     return 0
   }
+
   return Math.min(100, Math.max(1, Math.round((totalSeconds / dayTotalSeconds) * 100)))
 }
 
 export function getUsageEntryType(page: BrowserUsagePage): UsageEntryType {
-  if (isAdsPowerUsagePage(page)) {
-    return 'web'
-  }
   if (page.url.startsWith('app://ai/') || getAiUsageServiceForUrl(page.url)) {
     return 'ai'
   }
+
   return page.usageType ?? 'web'
-}
-
-export function isAdsPowerProcess(processName: string): boolean {
-  return processName === 'adspower' || processName === 'adspower global' || processName === 'adspower_global'
-}
-
-function isAdsPowerUsagePage(page: BrowserUsagePage): boolean {
-  return isAdsPowerProcess(page.processName ?? '') || normalizeServiceName(page.browser ?? '') === 'adspower' || normalizeServiceName(page.domain ?? '') === 'adspower'
-}
-
-function normalizeAdsPowerUsagePage(page: BrowserUsagePage): BrowserUsagePage {
-  if (!isAdsPowerUsagePage(page)) {
-    return page
-  }
-
-  return {
-    ...page,
-    url: page.url?.startsWith('app://ai/') ? 'app://browser/adspower' : page.url,
-    title: 'AdsPower',
-    domain: 'AdsPower',
-    browser: 'AdsPower',
-    usageType: 'web',
-  }
 }
 
 export function getUsageDisplayTitle(page: BrowserUsagePage): string {
   if (getUsageEntryType(page) !== 'ai') {
     return page.title
   }
+
   return getAiUsageServiceLabel(page.url) ?? page.domain ?? page.browser
 }
 
@@ -295,6 +298,7 @@ export function getUsageDisplayDomain(page: BrowserUsagePage): string {
   if (getUsageEntryType(page) !== 'ai') {
     return page.domain
   }
+
   return getAiUsageServiceLabel(page.url) ?? page.domain ?? 'AI 应用'
 }
 
@@ -322,16 +326,19 @@ export function formatUsageDuration(totalSeconds: number): string {
   const seconds = Math.max(0, Math.round(totalSeconds))
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
+
   if (hours > 0) {
     return minutes > 0 ? `${hours} 小时 ${minutes} 分钟` : `${hours} 小时`
   }
+
   if (minutes > 0) {
     return `${minutes} 分钟`
   }
+
   return `${seconds} 秒`
 }
 
-export function createEmptyBrowserUsageDay(date: string): BrowserUsageDay {
+function createEmptyBrowserUsageDay(date: string): BrowserUsageDay {
   return {
     date,
     totalSeconds: 0,
@@ -346,15 +353,18 @@ function normalizeBrowserUrl(rawUrl: string): string | null {
   }
 
   const candidate = /^[a-z][a-z\d+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+
   try {
     const url = new URL(candidate)
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
       return null
     }
+
     url.hostname = url.hostname.toLowerCase()
     if (!isLikelyWebHost(url.hostname)) {
       return null
     }
+
     url.username = ''
     url.password = ''
     url.hash = ''
@@ -370,9 +380,11 @@ function normalizeAiUsageKey(rawKey: string, fallbackName: string): string | nul
   if (!source) {
     return null
   }
+
   if (source.startsWith('app://ai/')) {
     return source
   }
+
   return `app://ai/${slugify(source)}`
 }
 
@@ -386,7 +398,10 @@ function normalizeDomain(hostname: string): string {
 }
 
 function isLikelyWebHost(hostname: string): boolean {
-  return hostname === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.includes('.') || hostname.includes(':')
+  return hostname === 'localhost'
+    || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)
+    || hostname.includes('.')
+    || hostname.includes(':')
 }
 
 function normalizePageTitle(title: string | undefined, fallback: string): string {
@@ -394,11 +409,16 @@ function normalizePageTitle(title: string | undefined, fallback: string): string
   if (!trimmed) {
     return fallback
   }
+
   return trimmed.length > PAGE_TITLE_MAX_LENGTH ? `${trimmed.slice(0, PAGE_TITLE_MAX_LENGTH - 3)}...` : trimmed
 }
 
 function slugify(value: string): string {
-  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
   return slug || 'unknown'
 }
 
