@@ -5,7 +5,7 @@ export function MemoWidget({ data }: { data: AppData }) {
   const memo = data.memos.find((item) => item.status === 'active' && item.showOnDesktop)
 
   return (
-    <OverlayFrame title="进行中备忘" dragLocked={data.desktopSettings.dragLocked}>
+    <OverlayFrame title="进行中备忘" widgetKey="memo" data={data}>
       {memo ? (
         <div className="rounded-[22px] border border-amber-200/70 bg-amber-50/72 p-5">
           <div className="flex items-center justify-between gap-3">

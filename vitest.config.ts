@@ -11,6 +11,15 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    exclude: [
+      '**/node_modules/**',
+      '**/coverage/**',
+      '**/out/**',
+      '**/release/**',
+      '**/downloads/**',
+      '**/backups/**',
+      '**/sources/**',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

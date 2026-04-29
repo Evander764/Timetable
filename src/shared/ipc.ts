@@ -1,7 +1,9 @@
 import type {
   AppData,
   AppSettings,
+  BrowserUsageDay,
   CountdownCard,
+  CountdownItem,
   DesktopSettings,
   PrincipleCard,
   WidgetConfig,
@@ -22,11 +24,16 @@ export type DataAction =
   | { type: 'memo/upsert'; payload: AppData['memos'][number] }
   | { type: 'memo/delete'; payload: { id: string } }
   | { type: 'memo/end'; payload: { id: string; endedAt: string } }
+  | { type: 'countdownItem/upsert'; payload: CountdownItem }
+  | { type: 'countdownItem/delete'; payload: { id: string } }
+  | { type: 'countdownItem/pin'; payload: { id: string | null } }
   | { type: 'principle/update'; payload: Partial<PrincipleCard> }
   | { type: 'countdown/update'; payload: Partial<CountdownCard> }
 
 export type SettingsUpdatePayload = {
-  desktopSettings?: Partial<DesktopSettings>
+  desktopSettings?: Omit<Partial<DesktopSettings>, 'widgets'> & {
+    widgets?: Partial<Record<WidgetKey, Partial<WidgetConfig>>>
+  }
   appSettings?: Partial<AppSettings>
   principleCard?: Partial<PrincipleCard>
   countdownCard?: Partial<CountdownCard>
@@ -36,6 +43,10 @@ export type OverlayWidgetUpdatePayload = {
   key: WidgetKey
   changes: Partial<WidgetConfig>
 }
+
+export type AppDataPatch =
+  | { type: 'widget/replace'; payload: { key: WidgetKey; widget: WidgetConfig } }
+  | { type: 'browserUsage/dayReplace'; payload: { date: string; day: BrowserUsageDay } }
 
 export type OverlaySnapPositionPayload = {
   key: WidgetKey
@@ -53,44 +64,23 @@ export type ExportDataResult = {
   filePath?: string
 }
 
-export type BackupInfo = {
-  name: string
-  filePath: string
+export type DataBackupReason = 'daily' | 'migration' | 'manual'
+
+export type DataBackupSummary = {
+  id: string
   createdAt: string
-  reason: 'startup' | 'daily' | 'manual' | 'pre-update' | 'before-restore'
+  reason: DataBackupReason
+  filePath: string
   size: number
 }
 
-export type RestoreDataResult = {
-  canceled: boolean
-  filePath?: string
-  data?: AppData
-}
-
-export type GithubUpdateInfo = {
-  available: boolean
-  currentVersion: string
-  latestVersion?: string
-  releaseName?: string
-  publishedAt?: string
-  body?: string
-  assetName?: string
-  assetSize?: number
-  error?: string
-}
-
-export type GithubUpdateInstallResult = {
-  started: boolean
-  error?: string
-}
-
-export type WindowControlAction = 'minimize' | 'maximize' | 'close' | 'hide' | 'show' | 'quit'
+export type WindowControlAction = 'minimize' | 'maximize' | 'close'
 
 export type WindowStatePayload = {
   isMaximized: boolean
 }
 
-export type TimetableApi = {
+export type TimeableApi = {
   loadData: () => Promise<AppData>
   updateData: (action: DataAction) => Promise<AppData>
   updateSettings: (payload: SettingsUpdatePayload) => Promise<AppData>
@@ -101,16 +91,13 @@ export type TimetableApi = {
   setStartup: (enabled: boolean) => Promise<AppData>
   selectBackground: () => Promise<SelectBackgroundResult | null>
   exportData: () => Promise<ExportDataResult>
-  createBackup: () => Promise<BackupInfo>
-  listBackups: () => Promise<BackupInfo[]>
-  restoreBackup: (filePath?: string) => Promise<RestoreDataResult>
-  openBackupDir: () => Promise<void>
-  checkForUpdate: () => Promise<GithubUpdateInfo>
-  installUpdate: () => Promise<GithubUpdateInstallResult>
+  listDataBackups: () => Promise<DataBackupSummary[]>
+  restoreDataBackup: (id: string) => Promise<AppData>
   saveBrowserUsageDay: (date: string) => Promise<ExportDataResult>
   filePathToUrl: (filePath: string) => string
   windowControl: (action: WindowControlAction) => Promise<void>
   overlayHover: (key: WidgetKey, hovering: boolean) => void
   onDataChanged: (listener: (data: AppData) => void) => () => void
+  onDataPatched: (listener: (patch: AppDataPatch) => void) => () => void
   onWindowStateChanged: (listener: (payload: WindowStatePayload) => void) => () => void
 }

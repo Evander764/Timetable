@@ -15,14 +15,16 @@ import { getCompletionRate, getDayProgressBreakdown, getRemainingTimeToday, getT
 
 export function OverviewPage() {
   const data = useAppStore((state) => state.data)
+  const updateData = useAppStore((state) => state.updateData)
 
   if (!data) {
     return <LoadingState />
   }
 
   const today = new Date()
-  const todayCourses = getCoursesForDate(data.courses, today, data.appSettings.termStartDate, data.appSettings.termWeekCount)
-  const nextCourse = getNextCourse(data.courses, today, data.appSettings.termStartDate, data.appSettings.termWeekCount)
+  const dateKey = formatDateKey(today)
+  const todayCourses = getCoursesForDate(data.courses, today, data.appSettings.termStartDate)
+  const nextCourse = getNextCourse(data.courses, today, data.appSettings.termStartDate)
   const todayTasks = getTasksForDate(data.dailyTasks, today)
   const progress = getDayProgressBreakdown(data.dailyTasks, today)
   const completionRate = getCompletionRate(data.dailyTasks, today)
@@ -32,6 +34,10 @@ export function OverviewPage() {
   const backgroundPreview = data.desktopSettings.backgroundImage
     ? window.timeable.filePathToUrl(data.desktopSettings.backgroundImage)
     : defaultBackground
+
+  function toggleTask(taskId: string, completed: boolean): void {
+    void updateData({ type: 'task/toggle', payload: { id: taskId, date: dateKey, completed } })
+  }
 
   return (
     <div className="space-y-6">
@@ -94,12 +100,22 @@ export function OverviewPage() {
             <div className="grid grid-cols-[1fr_120px] gap-4">
               <div className="space-y-3">
                 {todayTasks.slice(0, 5).map((task) => {
-                  const completed = Boolean(task.completions[formatDateKey(today)])
+                  const completed = Boolean(task.completions[dateKey])
                   return (
-                    <div key={task.id} className="flex items-center gap-3 rounded-[18px] border border-slate-200/80 bg-white/85 px-4 py-3">
-                      <div className={`h-5 w-5 rounded-md border ${completed ? 'border-blue-500 bg-blue-500' : 'border-slate-300 bg-white'}`} />
-                      <span className="flex-1 text-lg text-slate-800">{task.title}</span>
-                    </div>
+                    <button
+                      key={task.id}
+                      type="button"
+                      className="flex w-full items-center gap-3 rounded-[18px] border border-slate-200/80 bg-white/85 px-4 py-3 text-left transition hover:border-blue-200 hover:bg-blue-50/60"
+                      aria-pressed={completed}
+                      onClick={() => toggleTask(task.id, !completed)}
+                    >
+                      <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border text-[13px] font-semibold ${completed ? 'border-blue-500 bg-blue-500 text-white' : 'border-slate-300 bg-white text-transparent'}`}>
+                        ✓
+                      </span>
+                      <span className={completed ? 'min-w-0 flex-1 truncate text-lg text-slate-500 line-through' : 'min-w-0 flex-1 truncate text-lg text-slate-800'}>
+                        {task.title}
+                      </span>
+                    </button>
                   )
                 })}
               </div>

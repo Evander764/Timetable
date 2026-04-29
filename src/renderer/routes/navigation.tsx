@@ -27,7 +27,7 @@ export const navItems: NavItem[] = [
   { path: '/daily-tasks', label: '每日任务', icon: CheckSquare },
   { path: '/long-term-goals', label: '长期任务', icon: Target },
   { path: '/memos', label: '备忘录', icon: NotebookPen },
-  { path: '/countdown', label: '倒计时卡片', icon: TimerReset },
+  { path: '/countdown', label: '倒计时条', icon: TimerReset },
   { path: '/principle', label: '道理卡片', icon: Quote },
   { path: '/settings', label: '背景与设置', icon: Palette },
   { path: '/data-startup', label: '数据与启动', icon: Database },

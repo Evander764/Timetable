@@ -1,7 +1,6 @@
-import type { AppData, Course, DailyTask, LongTermGoal, Memo, WidgetConfig } from '@shared/types/app'
+import { APP_DATA_SCHEMA_VERSION, type AppData, type Course, type DailyTask, type LongTermGoal, type Memo, type WidgetConfig } from '@shared/types/app'
 import { createId } from '@shared/utils/id'
 import { formatDateKey, getWeekStart } from '@shared/utils/date'
-import { defaultTimetableSlots } from '@shared/utils/course'
 import { addDays, format, subDays } from 'date-fns'
 
 const cardBase = {
@@ -248,10 +247,12 @@ export function createDefaultAppData(dataPath: string): AppData {
   const termStartDate = format(subDays(currentWeekStart, 7 * 11), 'yyyy-MM-dd')
 
   return {
+    schemaVersion: APP_DATA_SCHEMA_VERSION,
     courses: buildDefaultCourses(),
     dailyTasks: buildDefaultTasks(today),
     longTermGoals: buildDefaultGoals(today),
     memos: buildDefaultMemos(today),
+    countdownItems: [],
     principleCard: {
       enabled: true,
       content: '真正的自由，不是随心所欲，\n而是自我主宰。',
@@ -260,8 +261,6 @@ export function createDefaultAppData(dataPath: string): AppData {
       position: 'bottom-center',
       opacity: 0.94,
       autoHide: false,
-      autoRotate: false,
-      rotateIntervalSeconds: 60,
     },
     countdownCard: {
       enabled: true,
@@ -281,25 +280,19 @@ export function createDefaultAppData(dataPath: string): AppData {
         mainPanel: widget(40, 42, 560, 640),
         dailyTasks: widget(640, 72, 430, 430, { enabled: false }),
         memo: widget(640, 520, 420, 380, { enabled: false }),
-        countdown: widget(40, 710, 390, 54, { minimized: true, opacity: 0.96 }),
+        countdown: widget(40, 710, 390, 54, { minimized: true }),
         principle: widget(640, 42, 400, 190, { enabled: false }),
       },
     },
     appSettings: {
       autoSave: true,
       launchAtStartup: false,
-      closeButtonAction: 'exit',
-      trayOnlyQuitEnabled: true,
+      closeButtonAction: 'quit',
       browserTrackingEnabled: true,
       browserTrackingIntervalSeconds: 10,
-      desktopLayoutVersion: 2,
-      opacityVersion: 2,
+      desktopLayoutVersion: 3,
       dataPath,
       termStartDate,
-      termWeekCount: 20,
-      timetableSlots: defaultTimetableSlots,
-      autoBackupEnabled: true,
-      autoCheckForUpdates: true,
     },
     browserUsage: {},
   }

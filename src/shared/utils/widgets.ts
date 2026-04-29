@@ -8,10 +8,10 @@ type WidgetSizeBase = {
 }
 
 export const WIDGET_SIZE_BASES: Record<WidgetKey, WidgetSizeBase> = {
-  mainPanel: { width: 560, height: 640, minScale: 70, maxScale: 140 },
+  mainPanel: { width: 560, height: 640, minScale: 75, maxScale: 130 },
   dailyTasks: { width: 430, height: 430, minScale: 70, maxScale: 145 },
   memo: { width: 420, height: 380, minScale: 70, maxScale: 145 },
-  countdown: { width: 390, height: 54, minScale: 70, maxScale: 125 },
+  countdown: { width: 390, height: 54, minScale: 85, maxScale: 125 },
   principle: { width: 400, height: 190, minScale: 70, maxScale: 155 },
 }
 
@@ -62,6 +62,7 @@ export function normalizeCountdownStripWidget(data: AppData): AppData {
   const countdown = data.desktopSettings.widgets.countdown
   const base = WIDGET_SIZE_BASES.countdown
   const maxHeight = Math.round(base.height * (base.maxScale / 100))
+
   if (countdown.height <= maxHeight) {
     return data
   }
@@ -87,17 +88,13 @@ export function normalizeCountdownStripWidget(data: AppData): AppData {
   }
 }
 
-export function migrateOverlayOpacity(data: AppData, previousOpacityVersion?: number): AppData {
-  if (previousOpacityVersion && previousOpacityVersion >= 2) {
-    return data
-  }
-
+export function raiseOverlayOpacity(data: AppData): AppData {
   const widgets = Object.fromEntries(
     (Object.entries(data.desktopSettings.widgets) as Array<[WidgetKey, WidgetConfig]>).map(([key, config]) => [
       key,
       {
         ...config,
-        opacity: Math.max(config.opacity ?? 0, key === 'countdown' ? 0.96 : 0.94),
+        opacity: Math.max(config.opacity, key === 'countdown' ? 0.96 : 0.94),
       },
     ]),
   ) as Record<WidgetKey, WidgetConfig>
@@ -106,20 +103,16 @@ export function migrateOverlayOpacity(data: AppData, previousOpacityVersion?: nu
     ...data,
     principleCard: {
       ...data.principleCard,
-      opacity: Math.max(data.principleCard.opacity ?? 0, 0.94),
+      opacity: Math.max(data.principleCard.opacity, 0.94),
     },
     countdownCard: {
       ...data.countdownCard,
-      opacity: Math.max(data.countdownCard.opacity ?? 0, 0.96),
+      opacity: Math.max(data.countdownCard.opacity, 0.96),
     },
     desktopSettings: {
       ...data.desktopSettings,
-      opacity: Math.max(data.desktopSettings.opacity ?? 0, 0.96),
+      opacity: Math.max(data.desktopSettings.opacity, 0.96),
       widgets,
-    },
-    appSettings: {
-      ...data.appSettings,
-      opacityVersion: 2,
     },
   }
 }
@@ -142,11 +135,21 @@ export function migrateDesktopThreePieceLayout(data: AppData, previousLayoutVers
         ...data.desktopSettings.widgets,
         mainPanel: {
           ...data.desktopSettings.widgets.mainPanel,
+          enabled: true,
           width: WIDGET_SIZE_BASES.mainPanel.width,
           height: WIDGET_SIZE_BASES.mainPanel.height,
         },
+        dailyTasks: {
+          ...data.desktopSettings.widgets.dailyTasks,
+          enabled: false,
+        },
+        memo: {
+          ...data.desktopSettings.widgets.memo,
+          enabled: false,
+        },
         countdown: {
           ...data.desktopSettings.widgets.countdown,
+          enabled: true,
           width: WIDGET_SIZE_BASES.countdown.width,
           height: WIDGET_SIZE_BASES.countdown.height,
           minimized: true,

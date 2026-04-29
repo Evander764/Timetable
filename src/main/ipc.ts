@@ -1,9 +1,8 @@
 import { stat } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
-import { BrowserWindow, dialog, ipcMain, screen, shell, type OpenDialogOptions } from 'electron'
+import { BrowserWindow, dialog, ipcMain, screen, type OpenDialogOptions } from 'electron'
 import type { AppData, WidgetPosition } from '@shared/types/app'
 import type { DataAction, OverlaySnapPositionPayload, OverlayWidgetUpdatePayload, SelectBackgroundResult, SettingsUpdatePayload, WindowControlAction } from '@shared/ipc'
-import { checkForGithubUpdate, installGithubUpdate } from './githubUpdate'
 import { getLaunchAtStartup, setLaunchAtStartup } from './startup'
 import type { AppStorage } from './storage'
 import type { WindowManager } from './windows'
@@ -26,13 +25,13 @@ export function registerIpcHandlers({ storage, windows, getData }: IpcServices):
     const next = await storage.updateSettings(payload)
     await windows.syncOverlayWindows(next)
     windows.broadcastData(next)
-    windows.refreshTrayMenu()
     return next
   })
   ipcMain.handle('overlay:update', async (_event, payload: OverlayWidgetUpdatePayload) => {
-    const next = await storage.updateWidget(payload)
+    const patch = await storage.updateWidgetPatch(payload)
+    const next = storage.getData()
     await windows.syncOverlayWindows(next)
-    windows.broadcastData(next)
+    windows.broadcastPatch(patch)
     return next
   })
   ipcMain.handle('overlay:snapPosition', async (_event, payload: OverlaySnapPositionPayload) => {
@@ -84,53 +83,29 @@ export function registerIpcHandlers({ storage, windows, getData }: IpcServices):
     windows.broadcastData(storage.getData())
     return result
   })
-  ipcMain.handle('data:createBackup', async () => {
-    const result = await storage.createBackup('manual')
-    windows.broadcastData(storage.getData())
-    return result
-  })
-  ipcMain.handle('data:listBackups', async () => storage.listBackups())
-  ipcMain.handle('data:restoreBackup', async (_event, filePath?: string) => {
-    const result = filePath
-      ? { canceled: false, filePath, data: await storage.restoreBackup(filePath) }
-      : await storage.restoreBackupFromDialog(windows.getMainWindow() ?? undefined)
-    if (!result.canceled && result.data) {
-      await windows.syncOverlayWindows(result.data)
-      windows.broadcastData(result.data)
-    }
-    return result
-  })
-  ipcMain.handle('data:openBackupDir', async () => {
-    await shell.openPath(storage.getBackupDir())
+  ipcMain.handle('data:listBackups', async () => storage.listDataBackups())
+  ipcMain.handle('data:restoreBackup', async (_event, id: string) => {
+    const next = await storage.restoreDataBackup(id)
+    await windows.syncOverlayWindows(next)
+    windows.broadcastData(next)
+    return next
   })
   ipcMain.handle('browserUsage:saveDay', async (_event, date: string) => storage.saveBrowserUsageDay(date, windows.getMainWindow() ?? undefined))
-  ipcMain.handle('update:check', async () => {
-    const next = await storage.updateSettings({ appSettings: { lastUpdateCheckAt: new Date().toISOString() } })
-    windows.broadcastData(next)
-    return checkForGithubUpdate()
-  })
-  ipcMain.handle('update:install', async () => installGithubUpdate(storage))
   ipcMain.handle('window:control', async (event, action: WindowControlAction) => {
-    if (action === 'close') {
-      await storage.flush()
-      await windows.handleMainWindowCloseIntent(getData())
-      return
-    }
-    if (action === 'quit') {
-      await windows.quitApplication()
-      return
-    }
-    if (action === 'hide') {
-      windows.hideMainWindow()
-      return
-    }
-    if (action === 'show') {
-      await windows.showMainWindow()
-      return
-    }
     const window = BrowserWindow.fromWebContents(event.sender)
+    if (action === 'close') {
+      if (window && windows.shouldCloseToTray()) {
+        windows.hideMainWindow()
+        return
+      }
+
+      await storage.flush()
+      windows.quitApplication()
+      return
+    }
+
     if (window) {
-      await windows.controlCurrentWindow(window, action)
+      windows.controlCurrentWindow(window, action)
     }
   })
   ipcMain.handle('file:pathToUrl', async (_event, filePath: string) => pathToFileURL(filePath).toString())
