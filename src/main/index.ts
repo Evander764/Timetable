@@ -1,10 +1,12 @@
 import { join } from 'node:path'
 import { app } from 'electron'
 import type { OverlayWidgetUpdatePayload } from '@shared/ipc'
+import { formatDateKey } from '@shared/utils/date'
 import { BrowserUsageTracker } from './browserUsageTracker'
 import { CourseReminderService } from './courseReminder'
 import { promptForGithubUpdate } from './githubUpdate'
 import { registerIpcHandlers } from './ipc'
+import { showEntryRitualSplash } from './ritualWindows'
 import { AppStorage } from './storage'
 import { getLaunchAtStartup } from './startup'
 import { WindowManager } from './windows'
@@ -13,6 +15,8 @@ let storage: AppStorage
 let windows: WindowManager
 let browserUsageTracker: BrowserUsageTracker
 let courseReminderService: CourseReminderService
+
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 
 async function bootstrap(): Promise<void> {
   const dataPath = join(app.getPath('userData'), 'app-data.json')
@@ -43,6 +47,13 @@ async function bootstrap(): Promise<void> {
     windows,
     getData: () => storage.getData(),
   })
+
+  const bootData = storage.getData()
+  const todayKey = formatDateKey(new Date())
+  if (bootData.appSettings.ritualIntroEnabled !== false) {
+    await showEntryRitualSplash(bootData.appSettings)
+    await storage.updateSettings({ appSettings: { lastEntryRitualDate: todayKey } })
+  }
 
   await windows.createMainWindow()
   await windows.syncOverlayWindows(storage.getData())

@@ -94,7 +94,7 @@ export function CountdownPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="倒计时卡片" subtitle="显示今日剩余时间、任务完成情况，并同步到桌面倒计时挂件。" />
+      <PageHeader title="倒计时" subtitle="显示今日剩余时间、重要事件和桌面浮窗状态。" />
 
       <div className="grid grid-cols-[460px_1fr] gap-4">
         <Card className="relative overflow-hidden bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(247,250,255,0.85))]">

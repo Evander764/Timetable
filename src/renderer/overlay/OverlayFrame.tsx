@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from 'react'
+import type { PropsWithChildren, ReactNode, Ref } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { EyeOff, GripHorizontal, Lock, MoreHorizontal, Pin, Unlock } from 'lucide-react'
 import { cn } from '@renderer/utils/cn'
@@ -10,11 +10,13 @@ type OverlayFrameProps = PropsWithChildren<{
   widgetKey?: WidgetKey
   data?: AppData
   className?: string
+  bodyClassName?: string
+  bodyRef?: Ref<HTMLDivElement>
   toolbarActions?: ReactNode
   footer?: ReactNode
 }>
 
-export function OverlayFrame({ title, dragLocked, widgetKey, data, className, toolbarActions, footer, children }: OverlayFrameProps) {
+export function OverlayFrame({ title, dragLocked, widgetKey, data, className, bodyClassName, bodyRef, toolbarActions, footer, children }: OverlayFrameProps) {
   const widgetDragLocked = widgetKey && data ? Boolean(data.desktopSettings.widgets[widgetKey].dragLocked) : false
   const effectiveDragLocked = Boolean(dragLocked ?? data?.desktopSettings.dragLocked) || widgetDragLocked
   const [menuOpen, setMenuOpen] = useState(false)
@@ -141,7 +143,7 @@ export function OverlayFrame({ title, dragLocked, widgetKey, data, className, to
           ) : null}
         </div>
       </div>
-      <div className="no-drag flex-1 px-5 pb-4">{children}</div>
+      <div ref={bodyRef} className={bodyClassName ? cn('no-drag flex-1', bodyClassName) : 'no-drag flex-1 px-5 pb-4'}>{children}</div>
       {footer ? <div className="no-drag border-t border-white/40 px-5 py-3 text-sm text-slate-500">{footer}</div> : null}
     </div>
   )

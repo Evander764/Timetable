@@ -18,11 +18,11 @@ import {
 } from '@shared/utils/widgets'
 
 const widgetMeta: Record<WidgetKey, { title: string; desc: string }> = {
-  mainPanel: { title: '主面板', desc: '日期、课程状态和今日行动中心。' },
-  dailyTasks: { title: '每日任务卡片', desc: '显示今日完成进度与任务清单。' },
-  memo: { title: '进行中备忘', desc: '展示正在进行且允许桌面显示的备忘。' },
-  countdown: { title: '倒计时卡片', desc: '显示当天剩余时间与任务统计。' },
-  principle: { title: '道理卡片', desc: '显示核心提醒文案与署名。' },
+  mainPanel: { title: '今日主面板', desc: '日期、课程状态和今日行动中心。' },
+  dailyTasks: { title: '执行浮窗', desc: '显示今日完成进度与任务清单。' },
+  memo: { title: '备忘浮窗', desc: '展示正在进行且允许桌面显示的备忘。' },
+  countdown: { title: '倒计时浮窗', desc: '显示当天剩余时间与任务统计。' },
+  principle: { title: '原则卡', desc: '显示核心提醒文案与署名。' },
 }
 
 const opacityPresets = [
@@ -105,8 +105,8 @@ export function DesktopPanelPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="桌面面板"
-        subtitle="管理桌面卡片的位置、大小、贴边隐藏、透明度和锁定状态。"
+        title="桌面浮窗"
+        subtitle="管理桌面浮窗的位置、大小、贴边隐藏、透明度和锁定状态。"
         actions={
           <>
             <Button variant="primary" onClick={() => void window.timeable.showOverlay()}>

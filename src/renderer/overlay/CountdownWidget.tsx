@@ -32,7 +32,7 @@ export function CountdownWidget({ data }: { data: AppData }) {
   }
 
   return (
-    <OverlayFrame title="倒计时卡片" widgetKey="countdown" data={data} className="countdown-card-edge">
+    <OverlayFrame title="倒计时" widgetKey="countdown" data={data} className="countdown-card-edge">
       {nextEvent && nextEventStatus ? (
         <div className="text-center">
           <div className="text-[15px] text-slate-500">最近事件</div>

@@ -94,7 +94,7 @@ export function PrinciplePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="道理卡片"
+        title="原则卡"
         subtitle="维护桌面上最重要的一组提醒，可手动切换或自动轮换。"
         actions={
           <Button variant="primary" onClick={() => void window.timeable.showOverlay()}>

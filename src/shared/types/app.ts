@@ -8,6 +8,8 @@ export type OverlayMode = 'floating' | 'desktop'
 export type CloseButtonAction = 'exit' | 'hide'
 export type UsageEntryType = 'web' | 'ai'
 export type PrincipleDisplayMode = 'embedded' | 'standalone'
+export type RitualEntryMode = 'door' | 'curtain' | 'meteor' | 'sunrise'
+export type RitualExitMode = 'door' | 'curtain' | 'moon'
 
 export type WidgetPosition =
   | 'top-left'
@@ -220,6 +222,17 @@ export type AppSettings = {
   lastUpdateCheckAt?: string
   lastSavedAt?: string
   lastExportedAt?: string
+  lastEntryRitualDate?: string
+  lastExitRitualDate?: string
+  ritualIntroEnabled: boolean
+  ritualOutroEnabled: boolean
+  ritualEntryMode: RitualEntryMode
+  ritualExitMode: RitualExitMode
+  ritualMusicEnabled: boolean
+  ritualMusicVolume: number
+  ritualEntryText: string
+  ritualExitLine1: string
+  ritualExitLine2: string
 }
 
 export type AppData = {

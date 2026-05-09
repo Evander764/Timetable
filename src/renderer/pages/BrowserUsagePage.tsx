@@ -53,7 +53,7 @@ export function BrowserUsagePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="时间统计"
+        title="时间审计"
         subtitle="按天汇总前台浏览器网页和 AI 应用停留时间，数据只保存在本机。"
         actions={
           <Button variant="primary" onClick={() => void saveBrowserUsageDay(selectedDate)}>

@@ -86,7 +86,7 @@ export type GithubUpdateInstallResult = {
   error?: string
 }
 
-export type WindowControlAction = 'minimize' | 'maximize' | 'close' | 'hide' | 'show' | 'quit'
+export type WindowControlAction = 'minimize' | 'maximize' | 'close' | 'hide' | 'show' | 'quit' | 'archive'
 
 export type WindowStatePayload = {
   isMaximized: boolean

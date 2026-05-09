@@ -28,7 +28,7 @@ export function DesktopMainPanel({ data }: { data: AppData }) {
 
   return (
     <OverlayFrame
-      title="Timetable"
+      title="今日主面板"
       widgetKey="mainPanel"
       data={data}
       footer={`课程 ${todayCourses.length} · 已完 ${courseStatus.completedCourses.length} · 剩余 ${courseStatus.remainingCourses.length} · 待办 ${pendingTasks.length}`}

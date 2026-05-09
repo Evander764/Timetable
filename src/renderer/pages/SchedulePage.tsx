@@ -98,7 +98,7 @@ export function SchedulePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="课程表管理"
+        title="课程账本"
         subtitle={`第 ${weekNumber} 周（${getMonthDayLabel(weekDates[0])} 至 ${getMonthDayLabel(weekDates[6])}）`}
         actions={
           <>

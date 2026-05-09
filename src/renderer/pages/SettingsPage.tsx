@@ -38,7 +38,7 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="背景与设置" subtitle="集中管理桌面面板、卡片显示、背景图片和本地持久化状态。" />
+      <PageHeader title="系统设置" subtitle="集中管理桌面浮窗、卡片显示、背景图片和本地持久化状态。" />
 
       <div className="grid balanced-option-grid gap-4">
         <SettingTile

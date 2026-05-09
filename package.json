@@ -9,12 +9,14 @@
   "type": "module",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "npm run typecheck && electron-vite build",
+    "build": "node scripts/clean-output.mjs && npm run typecheck && electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
     "lint": "eslint .",
     "test": "vitest run --coverage",
+    "archive:user-data": "node scripts/archive-user-data.mjs",
     "preview": "electron-vite preview",
     "pack:win": "node scripts/run-electron-builder-win.mjs --dir",
+    "deploy:local": "node scripts/deploy-local.mjs",
     "dist:win": "node scripts/run-electron-builder-win.mjs nsis",
     "dist:portable": "node scripts/run-electron-builder-win.mjs portable",
     "release:win": "node scripts/run-electron-builder-win.mjs nsis portable"

@@ -78,8 +78,8 @@ export function DailyTasksPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="每日任务管理"
-        subtitle="管理日常重复任务，培养稳定的节奏与长期习惯。"
+        title="执行队列"
+        subtitle="管理今天真正要推进的行动，并保留可执行的重复节奏。"
         actions={
           <>
             <Button variant="primary" onClick={() => {
