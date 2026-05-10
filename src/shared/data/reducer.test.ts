@@ -60,7 +60,7 @@ describe('data reducer', () => {
       ...data.appSettings,
       ritualIntroEnabled: false,
       ritualOutroEnabled: false,
-      ritualEntryMode: 'sunrise',
+      ritualEntryMode: 'workbench' as typeof data.appSettings.ritualEntryMode,
       ritualExitMode: 'moon',
       ritualMusicEnabled: false,
       ritualMusicVolume: 2,
@@ -71,7 +71,8 @@ describe('data reducer', () => {
 
     expect(normalized.ritualIntroEnabled).toBe(false)
     expect(normalized.ritualOutroEnabled).toBe(false)
-    expect(normalized.ritualEntryMode).toBe('sunrise')
+    expect(normalized.ritualEntryMode).toBe('door')
+    expect(normalized.workRitualMode).toBe('workbench')
     expect(normalized.ritualExitMode).toBe('moon')
     expect(normalized.ritualMusicEnabled).toBe(false)
     expect(normalized.ritualMusicVolume).toBe(0.3)
@@ -92,6 +93,7 @@ describe('data reducer', () => {
     expect(normalized.ritualMusicVolume).toBe(0.12)
     expect(normalized.ritualEntryMode).toBe('door')
     expect(normalized.ritualExitMode).toBe('door')
+    expect(normalized.workRitualMode).toBe('workbench')
   })
 
   it('normalizes unsupported ritual animation modes', () => {
@@ -100,9 +102,11 @@ describe('data reducer', () => {
       ...data.appSettings,
       ritualEntryMode: 'bad-entry' as typeof data.appSettings.ritualEntryMode,
       ritualExitMode: 'bad-exit' as typeof data.appSettings.ritualExitMode,
+      workRitualMode: 'bad-work' as typeof data.appSettings.workRitualMode,
     })
 
     expect(normalized.ritualEntryMode).toBe('door')
     expect(normalized.ritualExitMode).toBe('door')
+    expect(normalized.workRitualMode).toBe('workbench')
   })
 })

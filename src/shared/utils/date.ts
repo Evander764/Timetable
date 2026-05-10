@@ -29,6 +29,10 @@ export function combineDateAndTime(date: Date, time: string): Date {
   return parse(time, 'HH:mm', date)
 }
 
+export function parseDateKey(dateKey: string): Date {
+  return parse(dateKey, 'yyyy-MM-dd', new Date())
+}
+
 export function getWeekStart(date: Date): Date {
   return startOfWeek(date, { weekStartsOn: 1 })
 }
@@ -44,21 +48,21 @@ export function getWeekdayIndex(date: Date): number {
 }
 
 export function getAcademicWeek(date: Date, termStartDate: string): number {
-  const termStart = getWeekStart(new Date(termStartDate))
+  const termStart = getWeekStart(parseDateKey(termStartDate))
   return Math.max(1, differenceInCalendarWeeks(getWeekStart(date), termStart, { weekStartsOn: 1 }) + 1)
 }
 
 export function isDateWithinRange(date: Date, startDate?: string, endDate?: string): boolean {
   const current = startOfDay(date)
   if (startDate) {
-    const start = startOfDay(new Date(startDate))
+    const start = startOfDay(parseDateKey(startDate))
     if (isBefore(current, start)) {
       return false
     }
   }
 
   if (endDate) {
-    const end = startOfDay(new Date(endDate))
+    const end = startOfDay(parseDateKey(endDate))
     if (isAfter(current, end)) {
       return false
     }

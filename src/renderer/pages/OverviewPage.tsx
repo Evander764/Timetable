@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Archive, Check, ChevronRight, Clock, Menu, X } from 'lucide-react'
+import { Archive, Check, ChevronRight, Clock, Menu, Play, X } from 'lucide-react'
 import { EmptyState } from '@renderer/components/EmptyState'
 import { LoadingState } from '@renderer/components/LoadingState'
 import { useAppStore } from '@renderer/store/appStore'
+import type { RitualWorkMode } from '@shared/types/app'
 import type { CourseOccurrence, TodayCourseStatus } from '@shared/utils/course'
 import { getCoursesForDate, getNextCourse, getTodayCourseStatus } from '@shared/utils/course'
 import { formatDateKey, getCompactChineseDate, getChineseWeekdayLabel, getLunarLabel } from '@shared/utils/date'
@@ -26,12 +27,20 @@ const commandLinks = [
   { to: '/memos', label: '备忘档案' },
 ]
 
+const workModeOptions: Array<{ value: RitualWorkMode; label: string }> = [
+  { value: 'workbench', label: '工作台点亮' },
+  { value: 'stamp', label: '印章落定' },
+  { value: 'focus', label: '晨光聚焦' },
+]
+
 export function OverviewPage() {
   const data = useAppStore((state) => state.data)
   const updateData = useAppStore((state) => state.updateData)
+  const updateSettings = useAppStore((state) => state.updateSettings)
   const [now, setNow] = useState(() => new Date())
   const [commandOpen, setCommandOpen] = useState(false)
   const [activeSection, setActiveSection] = useState(0)
+  const [workRitualRunning, setWorkRitualRunning] = useState(false)
   const sectionRefs = useRef<Array<HTMLElement | null>>([])
 
   const goToSection = useCallback((index: number) => {
@@ -96,6 +105,35 @@ export function OverviewPage() {
     await updateData({ type: 'task/toggle', payload: { id: taskId, date: todayKey, completed } })
   }
 
+  async function startWorkRitual() {
+    if (workRitualRunning) {
+      return
+    }
+
+    setWorkRitualRunning(true)
+    try {
+      await window.timeable.startWorkRitual()
+    } finally {
+      setWorkRitualRunning(false)
+    }
+  }
+
+  async function runWorkMode(mode: RitualWorkMode) {
+    if (workRitualRunning || !data) {
+      return
+    }
+
+    setWorkRitualRunning(true)
+    try {
+      if (data.appSettings.workRitualMode !== mode) {
+        await updateSettings({ appSettings: { workRitualMode: mode } })
+      }
+      await window.timeable.startWorkRitual()
+    } finally {
+      setWorkRitualRunning(false)
+    }
+  }
+
   return (
     <div className="timetable-calibration-page">
       <header className="calibration-ledger-bar">
@@ -124,6 +162,35 @@ export function OverviewPage() {
               <div className="calibration-tag">OPENING QUESTION // LOCAL DAY</div>
               <h1>如果今天是最后一天，你打算怎么过？</h1>
               <p>先校准方向，再进入任务。今天只追踪真正能推动生活向前的节点。</p>
+              <div className="calibration-work-actions">
+                <button
+                  type="button"
+                  className="calibration-work-button"
+                  disabled={workRitualRunning}
+                  onClick={() => void startWorkRitual()}
+                >
+                  <Play size={16} fill="currentColor" strokeWidth={2.4} />
+                  <span>{workRitualRunning ? '仪式进行中' : '开始工作'}</span>
+                </button>
+                <em>WORK RITUAL // PREPARE</em>
+                <div className="calibration-work-modes" role="group" aria-label="切换并播放工作仪式">
+                  {workModeOptions.map((option) => {
+                    const isActive = data.appSettings.workRitualMode === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={'calibration-work-mode' + (isActive ? ' is-active' : '')}
+                        disabled={workRitualRunning}
+                        onClick={() => void runWorkMode(option.value)}
+                        title={'设为默认并立即播放：' + option.label}
+                      >
+                        {option.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
             <div className="calibration-date-card">
               <span>{getCompactChineseDate(now)}</span>

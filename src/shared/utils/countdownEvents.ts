@@ -1,9 +1,9 @@
-import { addDays, endOfDay, format, isValid, parse, startOfDay } from 'date-fns'
 import type { CountdownEvent } from '@shared/types/app'
-import { formatDateKey } from './date'
 import { createId } from './id'
 
 const defaultEventColor = '#2563EB'
+const beijingOffsetHours = 8
+const beijingOffsetMs = beijingOffsetHours * 60 * 60 * 1000
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/
 
 export type CountdownEventDraftResult =
@@ -21,7 +21,7 @@ export function createBlankCountdownEvent(now = new Date()): CountdownEvent {
   return {
     id: createId('countdown-event'),
     title: '',
-    targetDate: formatDateKey(now),
+    targetDate: formatBeijingDateKey(now),
     targetTime: undefined,
     note: '',
     color: defaultEventColor,
@@ -62,16 +62,16 @@ export function normalizeCountdownEventDraft(draft: CountdownEvent): CountdownEv
 }
 
 export function getCountdownEventStatus(event: CountdownEvent, now = new Date()): CountdownEventStatus {
-  const targetDate = parseDateKey(event.targetDate)
   const targetDateTime = getCountdownEventTargetDate(event)
-  const expiryDate = event.targetTime ? targetDateTime : addDays(startOfDay(targetDate), 1)
+  const expiryDate = event.targetTime ? targetDateTime : getBeijingDayExpiryDate(event.targetDate)
+  const dayEnd = new Date(getBeijingDayExpiryDate(event.targetDate).getTime() - 1)
   const expired = now.getTime() >= expiryDate.getTime()
-  const sortTime = event.targetTime ? targetDateTime.getTime() : endOfDay(targetDate).getTime()
+  const sortTime = event.targetTime ? targetDateTime.getTime() : dayEnd.getTime()
 
   return {
     expired,
-    remainingLabel: expired ? '已过期' : formatRemainingTime(now, event.targetTime ? targetDateTime : endOfDay(targetDate)),
-    targetLabel: event.targetTime ? `${event.targetDate} ${event.targetTime}` : `${event.targetDate} 全天`,
+    remainingLabel: expired ? '已过期' : formatRemainingTime(now, event.targetTime ? targetDateTime : dayEnd),
+    targetLabel: event.targetTime ? `${event.targetDate} ${event.targetTime} 北京时间` : `${event.targetDate} 全天 · 北京时间`,
     sortTime,
   }
 }
@@ -96,11 +96,27 @@ export function getNextCountdownEvent(events: CountdownEvent[], now = new Date()
 }
 
 export function getCountdownEventTargetDate(event: CountdownEvent): Date {
-  const targetDate = parseDateKey(event.targetDate)
   if (!event.targetTime) {
-    return startOfDay(targetDate)
+    return parseBeijingDateTime(event.targetDate, '00:00')
   }
-  return parse(event.targetTime, 'HH:mm', targetDate)
+  return parseBeijingDateTime(event.targetDate, event.targetTime)
+}
+
+export function formatBeijingDateKey(date: Date): string {
+  const beijingDate = new Date(date.getTime() + beijingOffsetMs)
+  return [
+    beijingDate.getUTCFullYear(),
+    pad2(beijingDate.getUTCMonth() + 1),
+    pad2(beijingDate.getUTCDate()),
+  ].join('-')
+}
+
+export function getRemainingBeijingDayTime(now = new Date()): string {
+  const diff = Math.max(0, getBeijingDayExpiryDate(formatBeijingDateKey(now)).getTime() - now.getTime())
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+  return [hours, minutes, seconds].map(pad2).join(':')
 }
 
 function formatRemainingTime(now: Date, target: Date): string {
@@ -122,14 +138,65 @@ function formatRemainingTime(now: Date, target: Date): string {
 }
 
 function isValidDateKey(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false
-  }
-
-  const parsed = parseDateKey(value)
-  return isValid(parsed) && format(parsed, 'yyyy-MM-dd') === value
+  return Boolean(parseDateParts(value))
 }
 
-function parseDateKey(value: string): Date {
-  return parse(value, 'yyyy-MM-dd', new Date())
+function parseBeijingDateTime(dateKey: string, time: string): Date {
+  const dateParts = parseDateParts(dateKey)
+  const timeParts = parseTimeParts(time)
+  if (!dateParts || !timeParts) {
+    return new Date(Number.NaN)
+  }
+
+  return new Date(Date.UTC(
+    dateParts.year,
+    dateParts.month - 1,
+    dateParts.day,
+    timeParts.hours - beijingOffsetHours,
+    timeParts.minutes,
+    0,
+    0,
+  ))
+}
+
+function getBeijingDayExpiryDate(dateKey: string): Date {
+  const dateParts = parseDateParts(dateKey)
+  if (!dateParts) {
+    return new Date(Number.NaN)
+  }
+
+  return new Date(Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day + 1, -beijingOffsetHours, 0, 0, 0))
+}
+
+function parseDateParts(value: string): { year: number; month: number; day: number } | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) {
+    return null
+  }
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const checked = new Date(Date.UTC(year, month - 1, day))
+  if (checked.getUTCFullYear() !== year || checked.getUTCMonth() + 1 !== month || checked.getUTCDate() !== day) {
+    return null
+  }
+
+  return { year, month, day }
+}
+
+function parseTimeParts(value: string): { hours: number; minutes: number } | null {
+  const match = timePattern.exec(value)
+  if (!match) {
+    return null
+  }
+
+  return {
+    hours: Number(match[1]),
+    minutes: Number(match[2]),
+  }
+}
+
+function pad2(value: number): string {
+  return value.toString().padStart(2, '0')
 }

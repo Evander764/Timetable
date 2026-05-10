@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DailyTask } from '@shared/types/app'
+import { parseDateKey } from './date'
 import { getCompletionRate, getTaskStreak, shouldTaskAppearOnDate } from './tasks'
 
 const baseTask: DailyTask = {
@@ -13,14 +14,14 @@ const baseTask: DailyTask = {
 
 describe('task utils', () => {
   it('matches repeat rules against a date', () => {
-    expect(shouldTaskAppearOnDate({ ...baseTask, repeatRule: 'daily' }, new Date('2026-04-24'))).toBe(true)
+    expect(shouldTaskAppearOnDate({ ...baseTask, repeatRule: 'daily' }, parseDateKey('2026-04-24'))).toBe(true)
     expect(
       shouldTaskAppearOnDate(
         { ...baseTask, repeatRule: 'weekly', weeklyDays: [5] },
-        new Date('2026-04-24'),
+        parseDateKey('2026-04-24'),
       ),
     ).toBe(true)
-    expect(shouldTaskAppearOnDate({ ...baseTask, repeatRule: 'holiday' }, new Date('2026-10-01'))).toBe(true)
+    expect(shouldTaskAppearOnDate({ ...baseTask, repeatRule: 'holiday' }, parseDateKey('2026-10-01'))).toBe(true)
   })
 
   it('calculates completion rate and streak from visible tasks', () => {
@@ -29,7 +30,7 @@ describe('task utils', () => {
       { ...baseTask, id: 'task-2', completions: { '2026-04-24': true, '2026-04-23': true } },
     ]
 
-    expect(getCompletionRate(tasks, new Date('2026-04-24'))).toBe(100)
-    expect(getTaskStreak(tasks, new Date('2026-04-24'))).toBe(2)
+    expect(getCompletionRate(tasks, parseDateKey('2026-04-24'))).toBe(100)
+    expect(getTaskStreak(tasks, parseDateKey('2026-04-24'))).toBe(2)
   })
 })

@@ -13,12 +13,13 @@ import { useAppStore } from '@renderer/store/appStore'
 import type { CountdownEvent } from '@shared/types/app'
 import {
   createBlankCountdownEvent,
+  getRemainingBeijingDayTime,
   getCountdownEventStatus,
   getNextCountdownEvent,
   getSortedCountdownEvents,
   normalizeCountdownEventDraft,
 } from '@shared/utils/countdownEvents'
-import { getCompletionRate, getDayProgressBreakdown, getRemainingTimeToday } from '@shared/utils/tasks'
+import { getCompletionRate, getDayProgressBreakdown } from '@shared/utils/tasks'
 
 export function CountdownPage() {
   const data = useAppStore((state) => state.data)
@@ -104,7 +105,7 @@ export function CountdownPage() {
           <div className="text-[30px] font-semibold tracking-tight text-slate-900">倒计时预览</div>
           <div className="mt-8 text-center">
             <div className="text-sm text-slate-500">今日剩余时间</div>
-            <div className="mt-4 text-7xl font-semibold tracking-tight text-[var(--color-primary)]">{getRemainingTimeToday(now)}</div>
+            <div className="mt-4 text-7xl font-semibold tracking-tight text-[var(--color-primary)]">{getRemainingBeijingDayTime(now)}</div>
           </div>
           <div className="mt-8">
             <div className="text-sm text-slate-500">任务完成情况</div>
@@ -254,7 +255,7 @@ export function CountdownPage() {
                   setEventDraft({ ...eventDraft, targetDate: event.target.value })
                 }} />
               </Field>
-              <Field label="目标时间（可选）">
+              <Field label="目标时间（可选，北京时间）">
                 <input className="form-input" type="time" value={eventDraft.targetTime ?? ''} onChange={(event) => {
                   setEventError(null)
                   setEventDraft({ ...eventDraft, targetTime: event.target.value || undefined })

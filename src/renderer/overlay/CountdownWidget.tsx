@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Clock3 } from 'lucide-react'
 import type { AppData } from '@shared/types/app'
-import { getCountdownEventStatus, getNextCountdownEvent } from '@shared/utils/countdownEvents'
-import { getCompletionRate, getDayProgressBreakdown, getRemainingTimeToday } from '@shared/utils/tasks'
+import { getCountdownEventStatus, getNextCountdownEvent, getRemainingBeijingDayTime } from '@shared/utils/countdownEvents'
+import { getCompletionRate, getDayProgressBreakdown } from '@shared/utils/tasks'
 import { cn } from '@renderer/utils/cn'
 import { OverlayFrame } from './OverlayFrame'
 
@@ -25,7 +25,7 @@ export function CountdownWidget({ data }: { data: AppData }) {
       <CountdownStrip
         className="glass-card countdown-strip-edge no-drag"
         label={nextEvent ? '最近事件' : '今日剩余'}
-        value={nextEventStatus?.remainingLabel ?? getRemainingTimeToday(now)}
+        value={nextEventStatus?.remainingLabel ?? getRemainingBeijingDayTime(now)}
         meta={nextEvent ? nextEvent.title : `${completionRate}% · ${breakdown.completed}/${breakdown.total}任务`}
       />
     )
@@ -43,7 +43,7 @@ export function CountdownWidget({ data }: { data: AppData }) {
       ) : (
         <div className="text-center">
           <div className="text-[15px] text-slate-500">今日剩余时间</div>
-          <div className="mt-4 text-[54px] font-semibold tracking-tight text-[var(--color-primary)]">{getRemainingTimeToday(now)}</div>
+          <div className="mt-4 text-[54px] font-semibold tracking-tight text-[var(--color-primary)]">{getRemainingBeijingDayTime(now)}</div>
           <div className="mt-4 text-sm text-slate-500">任务 {breakdown.completed}/{breakdown.total} · 完成率 {completionRate}%</div>
         </div>
       )}

@@ -48,5 +48,7 @@ Windows Application Control can block newly generated `Timetable.exe` files on t
 - Entry animation is controlled by `ritualIntroEnabled` and is not limited to once per day.
 - Exit animation is triggered by the dedicated `archive` window action, surfaced as `结束今日`.
 - Entry modes: `door`, `curtain`, `meteor`, `sunrise`.
+- Work ritual modes: `workbench`, `stamp`, `focus`. They are separate from startup entry and are triggered through `window.timeable.startWorkRitual()` / IPC `ritual:work`.
 - Exit modes: `door`, `curtain`, `moon`.
 - Ritual music is generated locally with Web Audio; do not add copied melodies or external audio assets.
+- Countdown day-based helpers default to Beijing time; keep that behavior out of private user-data defaults.

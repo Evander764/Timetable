@@ -1,19 +1,30 @@
-import { useEffect } from 'react'
-import { Download, FolderOpen, FolderOutput, Power, RefreshCw, RotateCcw, UploadCloud } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Download, FolderOpen, FolderOutput, Play, Power, RefreshCw, RotateCcw, UploadCloud } from 'lucide-react'
 import { Button } from '@renderer/components/Button'
 import { Card } from '@renderer/components/Card'
 import { LoadingState } from '@renderer/components/LoadingState'
 import { PageHeader } from '@renderer/components/PageHeader'
 import { Toggle } from '@renderer/components/Toggle'
 import { useAppStore } from '@renderer/store/appStore'
-import type { RitualEntryMode, RitualExitMode } from '@shared/types/app'
+import type { RitualEntryMode, RitualExitMode, RitualWorkMode } from '@shared/types/app'
 
-const entryRitualOptions: Array<{ value: RitualEntryMode; label: string }> = [
+const allRitualEntryOptions: Array<{ value: RitualEntryMode | RitualWorkMode; label: string }> = [
   { value: 'door', label: '开门光缝' },
   { value: 'curtain', label: '升起帷幕' },
   { value: 'meteor', label: '流星破晓' },
   { value: 'sunrise', label: '日出破晓' },
+  { value: 'workbench', label: '工作台点亮' },
+  { value: 'stamp', label: '印章落定' },
+  { value: 'focus', label: '晨光聚焦' },
 ]
+
+const entryRitualOptions = allRitualEntryOptions.filter((option) =>
+  option.value === 'door' || option.value === 'curtain' || option.value === 'meteor' || option.value === 'sunrise',
+) as Array<{ value: RitualEntryMode; label: string }>
+
+const workRitualOptions = allRitualEntryOptions.filter((option) =>
+  option.value === 'workbench' || option.value === 'stamp' || option.value === 'focus',
+) as Array<{ value: RitualWorkMode; label: string }>
 
 const exitRitualOptions: Array<{ value: RitualExitMode; label: string }> = [
   { value: 'door', label: '关门归档' },
@@ -34,6 +45,22 @@ export function DataStartupPage() {
   const openBackupDir = useAppStore((state) => state.openBackupDir)
   const checkForUpdate = useAppStore((state) => state.checkForUpdate)
   const installUpdate = useAppStore((state) => state.installUpdate)
+  const [workRitualRunning, setWorkRitualRunning] = useState(false)
+
+  async function previewWorkRitual(mode: RitualWorkMode) {
+    if (workRitualRunning || !data) {
+      return
+    }
+    setWorkRitualRunning(true)
+    try {
+      if (data.appSettings.workRitualMode !== mode) {
+        await updateSettings({ appSettings: { workRitualMode: mode } }, '工作仪式模式已更新。')
+      }
+      await window.timeable.startWorkRitual()
+    } finally {
+      setWorkRitualRunning(false)
+    }
+  }
 
   useEffect(() => {
     void loadBackups()
@@ -115,6 +142,35 @@ export function DataStartupPage() {
                   options={exitRitualOptions}
                   onChange={(value) => void updateSettings({ appSettings: { ritualExitMode: value as RitualExitMode } }, '结束动画模式已更新。')}
                 />
+                <SelectSetting
+                  label="工作仪式动画"
+                  value={data.appSettings.workRitualMode ?? 'workbench'}
+                  options={workRitualOptions}
+                  onChange={(value) => void updateSettings({ appSettings: { workRitualMode: value as RitualWorkMode } }, '工作仪式模式已更新。')}
+                />
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="text-xs font-medium text-slate-500">一键试播</span>
+                  {workRitualOptions.map((option) => {
+                    const isActive = (data.appSettings.workRitualMode ?? 'workbench') === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        disabled={workRitualRunning}
+                        onClick={() => void previewWorkRitual(option.value)}
+                        title={`设为默认并立即播放：${option.label}`}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                          isActive
+                            ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                            : 'border-slate-300 bg-white text-slate-600 hover:border-orange-400 hover:bg-orange-50/60 hover:text-slate-900'
+                        } ${workRitualRunning ? 'cursor-wait opacity-60' : 'cursor-pointer'}`}
+                      >
+                        <Play size={12} fill="currentColor" strokeWidth={2.4} />
+                        <span>{option.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
               <div className="grid gap-3 rounded-[14px] border border-slate-200/80 bg-white/88 p-4">
                 <div className="text-sm font-semibold text-slate-700">仪式文案</div>

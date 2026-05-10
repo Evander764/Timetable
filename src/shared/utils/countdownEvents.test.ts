@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { CountdownEvent } from '@shared/types/app'
 import {
+  createBlankCountdownEvent,
+  getRemainingBeijingDayTime,
   getCountdownEventStatus,
   getNextCountdownEvent,
   getSortedCountdownEvents,
@@ -44,18 +46,25 @@ describe('countdown event utils', () => {
   })
 
   it('keeps all-day events active through the target day', () => {
-    expect(getCountdownEventStatus(baseEvent, new Date('2026-05-01T23:00:00')).expired).toBe(false)
-    expect(getCountdownEventStatus(baseEvent, new Date('2026-05-02T00:00:00')).expired).toBe(true)
+    expect(getCountdownEventStatus(baseEvent, new Date('2026-05-01T15:59:00.000Z')).expired).toBe(false)
+    expect(getCountdownEventStatus(baseEvent, new Date('2026-05-01T16:00:00.000Z')).expired).toBe(true)
+    expect(getCountdownEventStatus(baseEvent, new Date('2026-05-01T15:59:00.000Z')).targetLabel).toContain('北京时间')
   })
 
   it('expires precise time events after their target time', () => {
     const timedEvent = { ...baseEvent, targetTime: '10:00' }
-    expect(getCountdownEventStatus(timedEvent, new Date('2026-05-01T09:59:00')).expired).toBe(false)
-    expect(getCountdownEventStatus(timedEvent, new Date('2026-05-01T10:00:00')).expired).toBe(true)
+    expect(getCountdownEventStatus(timedEvent, new Date('2026-05-01T01:59:00.000Z')).expired).toBe(false)
+    expect(getCountdownEventStatus(timedEvent, new Date('2026-05-01T02:00:00.000Z')).expired).toBe(true)
+    expect(getCountdownEventStatus(timedEvent, new Date('2026-05-01T01:59:00.000Z')).targetLabel).toBe('2026-05-01 10:00 北京时间')
+  })
+
+  it('defaults new countdown events and day remaining to Beijing time', () => {
+    expect(createBlankCountdownEvent(new Date('2026-05-01T17:00:00.000Z')).targetDate).toBe('2026-05-02')
+    expect(getRemainingBeijingDayTime(new Date('2026-05-01T15:59:58.000Z'))).toBe('00:00:02')
   })
 
   it('sorts active events first and picks the nearest active event', () => {
-    const now = new Date('2026-04-29T12:00:00')
+    const now = new Date('2026-04-29T04:00:00.000Z')
     const expired = { ...baseEvent, id: 'expired', title: '已过期', targetDate: '2026-04-28' }
     const later = { ...baseEvent, id: 'later', title: '后天', targetDate: '2026-05-01' }
     const sooner = { ...baseEvent, id: 'sooner', title: '明天', targetDate: '2026-04-30' }

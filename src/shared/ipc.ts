@@ -109,6 +109,7 @@ export type TimetableApi = {
   openBackupDir: () => Promise<void>
   checkForUpdate: () => Promise<GithubUpdateInfo>
   installUpdate: () => Promise<GithubUpdateInstallResult>
+  startWorkRitual: () => Promise<void>
   saveBrowserUsageDay: (date: string) => Promise<ExportDataResult>
   filePathToUrl: (filePath: string) => string
   windowControl: (action: WindowControlAction) => Promise<void>

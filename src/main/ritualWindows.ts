@@ -1,7 +1,14 @@
 import { BrowserWindow, screen } from 'electron'
 import type { AppSettings } from '@shared/types/app'
 import { formatDateKey } from '@shared/utils/date'
-import { buildEntryRitualHtml, buildExitRitualHtml, getEntryRitualDurationMs, getExitRitualDurationMs } from './ritualHtml'
+import {
+  buildEntryRitualHtml,
+  buildExitRitualHtml,
+  buildWorkRitualHtml,
+  getEntryRitualDurationMs,
+  getExitRitualDurationMs,
+  getWorkRitualDurationMs,
+} from './ritualHtml'
 
 const ritualWindows = new Set<BrowserWindow>()
 
@@ -45,6 +52,13 @@ export function showExitRitualSplash(appSettings: AppSettings): Promise<void> {
   const window = createRitualWindow()
   loadRitualHtml(window, buildExitRitualHtml(appSettings))
   return closeAfter(window, getExitRitualDurationMs(appSettings))
+}
+
+export function showWorkRitualSplash(appSettings: AppSettings): Promise<void> {
+  const window = createRitualWindow()
+  const todayKey = formatDateKey(new Date())
+  loadRitualHtml(window, buildWorkRitualHtml(appSettings, todayKey))
+  return closeAfter(window, getWorkRitualDurationMs(appSettings))
 }
 
 function closeAfter(window: BrowserWindow, durationMs: number): Promise<void> {

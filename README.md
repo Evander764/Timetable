@@ -19,11 +19,11 @@ This repository does not store private user data. Runtime data and backups stay 
 - Daily tasks: recurring tasks, completion tracking, priority, and desktop task widgets.
 - Long-term goals: staged goals, subtasks, progress, and status tracking.
 - Memo archive: active/ended memos and optional desktop display.
-- Countdown events: countdown card and event list.
+- Countdown events: countdown card and event list, with day-based timing aligned to Beijing time by default.
 - Principle cards: multiple cards, standalone/embedded display, rotation, and desktop widget support.
 - Desktop widgets: main panel, task widget, memo widget, countdown widget, and principle widget.
 - Time audit: day-level browser and AI usage tracking.
-- Rituals: configurable entry and exit animation modes with local Web Audio synthesis.
+- Rituals: configurable entry, work-start, and exit animation modes with local Web Audio synthesis.
 
 ## Ritual Modes
 
@@ -40,7 +40,13 @@ Exit modes:
 - `降下帷幕`
 - `月升归档`
 
-Entry playback is controlled by the `每日入场仪式` setting and is no longer limited to once per day. Exit playback is triggered by the dedicated `结束今日` archive action.
+Work ritual modes:
+
+- `工作台点亮`
+- `印章落定`
+- `晨光聚焦`
+
+Entry playback is controlled by the `每日入场仪式` setting and is no longer limited to once per day. Work rituals are launched manually from `今日校准台` or previewed in settings; they are not startup animations. Exit playback is triggered by the dedicated `结束今日` archive action.
 
 ## Local Development
 

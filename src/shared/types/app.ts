@@ -10,6 +10,7 @@ export type UsageEntryType = 'web' | 'ai'
 export type PrincipleDisplayMode = 'embedded' | 'standalone'
 export type RitualEntryMode = 'door' | 'curtain' | 'meteor' | 'sunrise'
 export type RitualExitMode = 'door' | 'curtain' | 'moon'
+export type RitualWorkMode = 'workbench' | 'stamp' | 'focus'
 
 export type WidgetPosition =
   | 'top-left'
@@ -228,6 +229,7 @@ export type AppSettings = {
   ritualOutroEnabled: boolean
   ritualEntryMode: RitualEntryMode
   ritualExitMode: RitualExitMode
+  workRitualMode: RitualWorkMode
   ritualMusicEnabled: boolean
   ritualMusicVolume: number
   ritualEntryText: string

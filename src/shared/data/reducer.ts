@@ -1,4 +1,4 @@
-import type { AppData, AppSettings, RitualEntryMode, RitualExitMode, WidgetKey } from '@shared/types/app'
+import type { AppData, AppSettings, RitualEntryMode, RitualExitMode, RitualWorkMode, WidgetKey } from '@shared/types/app'
 import type { DataAction, OverlayWidgetUpdatePayload, SettingsUpdatePayload } from '@shared/ipc'
 import { normalizeCourseReminderMinutes } from '@shared/utils/course'
 import { advanceGoalStage } from '@shared/utils/goals'
@@ -138,6 +138,7 @@ export function normalizeAppSettings(settings: AppSettings): AppSettings {
     ritualOutroEnabled: settings.ritualOutroEnabled !== false,
     ritualEntryMode: normalizeRitualEntryMode(settings.ritualEntryMode),
     ritualExitMode: normalizeRitualExitMode(settings.ritualExitMode),
+    workRitualMode: normalizeRitualWorkMode(settings.workRitualMode ?? settings.ritualEntryMode),
     ritualMusicEnabled: settings.ritualMusicEnabled !== false,
     ritualMusicVolume: normalizeRitualMusicVolume(settings.ritualMusicVolume),
     ritualEntryText: settings.ritualEntryText?.trim() || '如果今天是最后一天，你打算怎么过？',
@@ -152,6 +153,10 @@ export function normalizeRitualEntryMode(value: unknown): RitualEntryMode {
 
 export function normalizeRitualExitMode(value: unknown): RitualExitMode {
   return value === 'curtain' || value === 'moon' || value === 'door' ? value : 'door'
+}
+
+export function normalizeRitualWorkMode(value: unknown): RitualWorkMode {
+  return value === 'stamp' || value === 'focus' || value === 'workbench' ? value : 'workbench'
 }
 
 export function normalizeRitualMusicVolume(value: number): number {

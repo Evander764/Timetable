@@ -314,6 +314,7 @@ export function createDefaultAppData(dataPath: string): AppData {
       ritualOutroEnabled: true,
       ritualEntryMode: 'door',
       ritualExitMode: 'door',
+      workRitualMode: 'workbench',
       ritualMusicEnabled: true,
       ritualMusicVolume: 0.12,
       ritualEntryText: '如果今天是最后一天，你打算怎么过？',
