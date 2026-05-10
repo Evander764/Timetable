@@ -9,36 +9,44 @@ export function DailyTaskWidget({ data }: { data: AppData }) {
   const tasks = getTasksForDate(data.dailyTasks, today)
   const dateKey = formatDateKey(today)
   const completionRate = getCompletionRate(data.dailyTasks, today)
+  const completedCount = tasks.filter((task) => task.completions[dateKey]).length
+  const streak = getTaskStreak(data.dailyTasks, today)
+  const visibleTasks = tasks.slice(0, 5)
+  const hiddenTaskCount = Math.max(0, tasks.length - visibleTasks.length)
 
   return (
-    <OverlayFrame title="每日任务" dragLocked={data.desktopSettings.dragLocked}>
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-[15px] text-slate-500">今日完成</div>
-          <div className="mt-1 text-[34px] font-semibold text-slate-900">
-            {tasks.filter((task) => task.completions[dateKey]).length}/{tasks.length}
-          </div>
-        </div>
-        <div className="text-[34px] font-semibold text-slate-900">{completionRate}%</div>
-      </div>
-      <div className="mt-4">
-        <ProgressBar value={completionRate} className="h-3 bg-white/60" />
-      </div>
-
-      <div className="mt-5 grid grid-cols-[1fr_108px] gap-4">
-        <div className="space-y-3">
-          {tasks.slice(0, 6).map((task) => (
-            <div key={task.id} className="flex items-center gap-3 text-[16px] text-slate-800">
-              <div className={`h-5 w-5 rounded-md border ${task.completions[dateKey] ? 'border-blue-500 bg-blue-500' : 'border-slate-300 bg-white/50'}`} />
-              <span>{task.title}</span>
+    <OverlayFrame title="执行浮窗" dragLocked={data.desktopSettings.dragLocked}>
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[15px] text-slate-500">今日完成</div>
+            <div className="mt-1 text-[32px] font-semibold leading-none text-slate-900">
+              {completedCount}/{tasks.length}
             </div>
-          ))}
+          </div>
+          <div className="text-[32px] font-semibold leading-none text-slate-900">{completionRate}%</div>
         </div>
-        <div className="border-l border-white/50 pl-4 text-center">
-          <div className="text-[15px] text-slate-500">连续打卡</div>
-          <div className="mt-2 text-[54px] font-semibold text-slate-900">{getTaskStreak(data.dailyTasks, today)}</div>
-          <div className="mt-2 text-[15px] text-slate-500">继续加油</div>
-          <div className="mt-4 text-5xl">🔥</div>
+        <div className="mt-3">
+          <ProgressBar value={completionRate} className="h-3 bg-white/60" />
+        </div>
+
+        <div className="mt-4 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_96px] gap-3 overflow-hidden">
+          <div className="min-h-0 space-y-2 overflow-hidden">
+            {visibleTasks.map((task) => (
+              <div key={task.id} className="flex min-w-0 items-center gap-2.5 text-[15px] leading-tight text-slate-800">
+                <div className={`h-[18px] w-[18px] shrink-0 rounded-md border ${task.completions[dateKey] ? 'border-blue-500 bg-blue-500' : 'border-slate-300 bg-white/50'}`} />
+                <span className="min-w-0 truncate">{task.title}</span>
+              </div>
+            ))}
+            {hiddenTaskCount > 0 ? (
+              <div className="rounded-full bg-white/60 px-2.5 py-1 text-xs text-slate-500">还有 {hiddenTaskCount} 项在任务页查看</div>
+            ) : null}
+          </div>
+          <div className="flex min-h-0 flex-col justify-center border-l border-white/50 pl-3 text-center">
+            <div className="text-[13px] text-slate-500">连续打卡</div>
+            <div className="mt-1 text-[44px] font-semibold leading-none text-slate-900">{streak}</div>
+            <div className="mt-2 text-[13px] leading-tight text-slate-500">当前连续</div>
+          </div>
         </div>
       </div>
     </OverlayFrame>

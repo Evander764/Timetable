@@ -1,75 +1,91 @@
-# Timetable
+# Timetable.OS
 
-Timetable 是一个本地优先的 Windows 桌面规划工具，用来管理课程表、每日任务、长期目标、备忘录、倒计时、道理卡片、桌面挂件和时间统计。
+Timetable.OS is a local-first Windows desktop planner for courses, daily tasks, long-term goals, memos, countdowns, principle cards, desktop widgets, time statistics, and ritualized day start/end flows.
 
-## 直接下载
+## Current Local Version
 
-[点击下载 Windows 安装包 setup.exe](https://github.com/Evander764/Timetable/releases/download/v0.3.3/Timetable-0.3.3-x64-setup.exe)
+- App version: `0.3.8`
+- Source of truth: `D:\software\时间管理窗`
+- Local runtime target: `D:\software\Timetable_latest_standalone_20260425233036\win-unpacked`
+- User data: `%APPDATA%\Timetable\app-data.json`
+- User data archive root: `D:\software\Timetable_data_archive`
 
-不想安装时，也可以下载解压版：
+This repository does not store private user data. Runtime data and backups stay outside the source tree.
 
-[下载 win-unpacked 压缩包](https://github.com/Evander764/Timetable/releases/download/v0.3.3/Timetable-win-unpacked-v0.3.3.zip)
+## Features
 
-## 运行提示
+- Course ledger: term start date, total weeks, odd/even week courses, and custom timetable slots.
+- Today calibration: vertical daily workflow with the main question, next node, execution queue, and archive action.
+- Daily tasks: recurring tasks, completion tracking, priority, and desktop task widgets.
+- Long-term goals: staged goals, subtasks, progress, and status tracking.
+- Memo archive: active/ended memos and optional desktop display.
+- Countdown events: countdown card and event list.
+- Principle cards: multiple cards, standalone/embedded display, rotation, and desktop widget support.
+- Desktop widgets: main panel, task widget, memo widget, countdown widget, and principle widget.
+- Time audit: day-level browser and AI usage tracking.
+- Rituals: configurable entry and exit animation modes with local Web Audio synthesis.
 
-- 当前版本支持 Windows x64。
-- 安装包是普通用户安装，不需要管理员权限。
-- 当前安装包没有数字签名，Windows 可能显示“未知发布者”或 SmartScreen 提示。
-- 如果你信任这个仓库，可以在提示中点击“更多信息”，然后选择“仍要运行”。
-- Release 附带 `SHA256SUMS.txt`，可用于校验下载文件。
+## Ritual Modes
 
-## 主要功能
+Entry modes:
 
-- 课程表：支持学期开始日期、总周数、单/双周课程、自定义课表时间。
-- 今日行动中心：自动判断正在上课、下一节课、今日课程结束或今日无课。
-- 道理卡片：支持多张卡片、手动切换、自动轮换和翻页动画。
-- 桌面挂件：支持主面板、倒计时、备忘录、任务卡片和道理卡片。
-- 时间统计：按天统计前台网页和 AI 应用使用时间，AdsPower 不会被计入 Claude。
-- 托盘退出：可设置右上角关闭按钮是退出程序还是隐藏到托盘，也可开启“仅托盘退出”。
-- 数据备份：支持自动备份、手动备份、备份恢复和恢复前保护备份。
+- `开门光缝`
+- `升起帷幕`
+- `流星破晓`
+- `日出破晓`
 
-## 数据与隐私
+Exit modes:
 
-- 这个仓库不包含任何个人应用数据。
-- 应用运行数据保存在 Electron 的 `userData/app-data.json`。
-- 备份文件保存在 `userData/backups`。
-- 更新应用包不会覆盖原来的 JSON 数据。
-- 导出的备份、本地构建产物和运行日志不会提交到 Git。
+- `关门归档`
+- `降下帷幕`
+- `月升归档`
 
-## 自动更新
+Entry playback is controlled by the `每日入场仪式` setting and is no longer limited to once per day. Exit playback is triggered by the dedicated `结束今日` archive action.
 
-打包后的应用启动时会检查 GitHub 最新 Release：
+## Local Development
 
-```text
-https://github.com/Evander764/Timetable/releases/latest
-```
-
-发现新版本后，应用会显示版本说明和确认按钮。用户确认后，程序会先备份当前用户数据，再下载 Release 中的 `app.asar`，校验 `SHA256SUMS.txt`，替换资源包并自动重启。用户数据仍然保留在本机 `userData` 目录，新版本会继续使用原来的数据。
-
-## 本地开发
+Install dependencies:
 
 ```bash
 npm install
+```
+
+Run during development:
+
+```bash
 npm run dev
 ```
 
-常用命令：
+Checks:
 
 ```bash
-npm run lint
-npm test
-npm run build
-npm run pack:win
-npm run dist:win
-npm run dist:portable
-npm run release:win
+npm.cmd run typecheck
+npm.cmd run lint
+npm.cmd test
+npm.cmd run build
 ```
 
-## 发布新版本
+Package and deploy to the local runtime target:
 
-1. 提高 `package.json` 和 `package-lock.json` 的版本号。
-2. 执行 `npm run release:win`。
-3. 上传 `app.asar`、`setup.exe`、便携版、win-unpacked zip 和 `SHA256SUMS.txt`。
-4. 创建 GitHub Release，例如 `v0.3.3`。
+```bash
+npm.cmd run pack:win
+npm.cmd run deploy:local
+```
 
-当前最新公开版本是 `v0.3.3`。
+After building, syntax-check the generated bundles when changing main-process or renderer behavior:
+
+```bash
+node --check out/main/index.js
+node --check out/renderer/assets/index-*.js
+```
+
+## Local Deployment Note
+
+On this machine, newly generated `Timetable.exe` files can be blocked by Windows Application Control policy. If the deployed executable is blocked but an earlier `Timetable.exe` is allowed, keep the allowed executable shell and deploy the current `resources/app.asar`. The product code still comes from source and the current packaged resource bundle.
+
+## Data And Privacy
+
+- The source tree must not include `%APPDATA%\Timetable\app-data.json`.
+- Use `npm.cmd run archive:user-data` when a manual data snapshot is needed.
+- Application package updates must not overwrite user JSON data.
+- Generated release folders, runtime logs, coverage output, and local archives are build artifacts, not source facts.

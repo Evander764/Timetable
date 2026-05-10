@@ -1,7 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   CalendarDays,
-  CheckSquare,
   Clock3,
   Database,
   Home,
@@ -9,6 +8,7 @@ import {
   NotebookPen,
   Palette,
   Quote,
+  SquareCheckBig,
   TimerReset,
   Target,
 } from 'lucide-react'
@@ -20,17 +20,17 @@ export type NavItem = {
 }
 
 export const navItems: NavItem[] = [
-  { path: '/overview', label: '总览', icon: Home },
-  { path: '/browser-usage', label: '时间统计', icon: Clock3 },
-  { path: '/desktop-panel', label: '桌面面板', icon: LayoutPanelTop },
-  { path: '/schedule', label: '课程表', icon: CalendarDays },
-  { path: '/daily-tasks', label: '每日任务', icon: CheckSquare },
-  { path: '/long-term-goals', label: '长期任务', icon: Target },
-  { path: '/memos', label: '备忘录', icon: NotebookPen },
-  { path: '/countdown', label: '倒计时卡片', icon: TimerReset },
-  { path: '/principle', label: '道理卡片', icon: Quote },
-  { path: '/settings', label: '背景与设置', icon: Palette },
-  { path: '/data-startup', label: '数据与启动', icon: Database },
+  { path: '/overview', label: '今日校准', icon: Home },
+  { path: '/browser-usage', label: '时间审计', icon: Clock3 },
+  { path: '/desktop-panel', label: '桌面浮窗', icon: LayoutPanelTop },
+  { path: '/schedule', label: '课程账本', icon: CalendarDays },
+  { path: '/daily-tasks', label: '执行队列', icon: SquareCheckBig },
+  { path: '/long-term-goals', label: '目标档案', icon: Target },
+  { path: '/memos', label: '备忘档案', icon: NotebookPen },
+  { path: '/countdown', label: '倒计时', icon: TimerReset },
+  { path: '/principle', label: '原则卡', icon: Quote },
+  { path: '/settings', label: '系统设置', icon: Palette },
+  { path: '/data-startup', label: '数据中枢', icon: Database },
 ]
 
 export const navTitleMap = Object.fromEntries(navItems.map((item) => [item.path, item.label]))
