@@ -1,6 +1,8 @@
-import type { AppData, WidgetKey } from '@shared/types/app'
+import type { AppData, AppSettings, RitualEntryMode, RitualExitMode, WidgetKey } from '@shared/types/app'
 import type { DataAction, OverlayWidgetUpdatePayload, SettingsUpdatePayload } from '@shared/ipc'
+import { normalizeCourseReminderMinutes } from '@shared/utils/course'
 import { advanceGoalStage } from '@shared/utils/goals'
+import { normalizeDesktopAutoHideDelayMs } from '@shared/utils/widgets'
 
 function upsertById<T extends { id: string }>(items: T[], value: T): T[] {
   const index = items.findIndex((item) => item.id === value.id)
@@ -65,6 +67,10 @@ export function applyDataAction(data: AppData, action: DataAction): AppData {
             : memo,
         ),
       }
+    case 'countdownEvent/upsert':
+      return { ...data, countdownEvents: upsertById(data.countdownEvents, action.payload) }
+    case 'countdownEvent/delete':
+      return { ...data, countdownEvents: data.countdownEvents.filter((event) => event.id !== action.payload.id) }
     case 'principle/update':
       return { ...data, principleCard: { ...data.principleCard, ...action.payload } }
     case 'countdown/update':
@@ -91,10 +97,10 @@ export function applySettingsUpdate(data: AppData, payload: SettingsUpdatePayloa
   if (payload.appSettings) {
     nextData = {
       ...nextData,
-      appSettings: {
+      appSettings: normalizeAppSettings({
         ...nextData.appSettings,
         ...payload.appSettings,
-      },
+      }),
     }
   }
 
@@ -119,6 +125,40 @@ export function applySettingsUpdate(data: AppData, payload: SettingsUpdatePayloa
   }
 
   return nextData
+}
+
+export function normalizeAppSettings(settings: AppSettings): AppSettings {
+  return {
+    ...settings,
+    courseReminderEnabled: settings.courseReminderEnabled !== false,
+    courseReminderMinutes: normalizeCourseReminderMinutes(settings.courseReminderMinutes),
+    desktopAutoHideDelayMs: normalizeDesktopAutoHideDelayMs(settings.desktopAutoHideDelayMs),
+    desktopLayoutLockEnabled: Boolean(settings.desktopLayoutLockEnabled),
+    ritualIntroEnabled: settings.ritualIntroEnabled !== false,
+    ritualOutroEnabled: settings.ritualOutroEnabled !== false,
+    ritualEntryMode: normalizeRitualEntryMode(settings.ritualEntryMode),
+    ritualExitMode: normalizeRitualExitMode(settings.ritualExitMode),
+    ritualMusicEnabled: settings.ritualMusicEnabled !== false,
+    ritualMusicVolume: normalizeRitualMusicVolume(settings.ritualMusicVolume),
+    ritualEntryText: settings.ritualEntryText?.trim() || '如果今天是最后一天，你打算怎么过？',
+    ritualExitLine1: settings.ritualExitLine1?.trim() || '明天',
+    ritualExitLine2: settings.ritualExitLine2?.trim() || '从现在开始',
+  }
+}
+
+export function normalizeRitualEntryMode(value: unknown): RitualEntryMode {
+  return value === 'curtain' || value === 'meteor' || value === 'sunrise' || value === 'door' ? value : 'door'
+}
+
+export function normalizeRitualExitMode(value: unknown): RitualExitMode {
+  return value === 'curtain' || value === 'moon' || value === 'door' ? value : 'door'
+}
+
+export function normalizeRitualMusicVolume(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0.12
+  }
+  return Math.min(0.3, Math.max(0, value))
 }
 
 export function applyOverlayWidgetUpdate(data: AppData, payload: OverlayWidgetUpdatePayload): AppData {

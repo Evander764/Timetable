@@ -20,6 +20,8 @@ export type TodayCourseStatus = {
   remainingCourses: CourseOccurrence[]
 }
 
+export const DEFAULT_COURSE_REMINDER_MINUTES = 15
+
 export const defaultTimetableSlots: TimetableSlot[] = [
   { id: 'morning-1', section: '上午', label: '第1节', startTime: '08:30', endTime: '09:10' },
   { id: 'morning-2', section: '上午', label: '第2节', startTime: '09:15', endTime: '09:55' },
@@ -40,6 +42,14 @@ export function normalizeTermWeekCount(value: unknown): number {
     return 20
   }
   return Math.min(40, Math.max(1, Math.round(parsed)))
+}
+
+export function normalizeCourseReminderMinutes(value: unknown): number {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_COURSE_REMINDER_MINUTES
+  }
+  return Math.min(120, Math.max(1, Math.round(parsed)))
 }
 
 export function normalizeCourseTimeSlots(slots: unknown): TimetableSlot[] {
@@ -139,6 +149,27 @@ export function getTodayCourseStatus(courses: Course[], now: Date, termStartDate
     completedCourses,
     remainingCourses,
   }
+}
+
+export function getCourseReminderCandidates(
+  courses: Course[],
+  now: Date,
+  termStartDate: string,
+  termWeekCount = 20,
+  reminderMinutes = DEFAULT_COURSE_REMINDER_MINUTES,
+): CourseOccurrence[] {
+  const reminderWindowMs = normalizeCourseReminderMinutes(reminderMinutes) * 60 * 1000
+  const nowTime = now.getTime()
+  return getCoursesForDate(courses, now, termStartDate, termWeekCount)
+    .filter((course) => {
+      const startTime = combineDateAndTime(now, course.startTime).getTime()
+      const untilStart = startTime - nowTime
+      return untilStart > 0 && untilStart <= reminderWindowMs
+    })
+}
+
+export function getCourseReminderKey(course: CourseOccurrence): string {
+  return `${course.dateKey}:${course.id}:${course.startTime}`
 }
 
 export function getWeekCourses(
