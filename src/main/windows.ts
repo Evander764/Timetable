@@ -39,11 +39,11 @@ function loadRoute(window: BrowserWindow, hash: string): Promise<void> {
 }
 
 function createAppIcon(size: number): Electron.NativeImage {
+  // Keep tray/window icons on the same ICO source used for the packaged app icon.
   const candidates = [
-    join(__dirname, '../renderer/tray-icon.png'),
-    join(__dirname, '../renderer/favicon.png'),
     join(__dirname, '../renderer/favicon.ico'),
-    join(__dirname, '../renderer/favicon.svg'),
+    join(process.cwd(), 'public/favicon.ico'),
+    join(process.cwd(), 'buildResources/icon.ico'),
   ]
   const fileImage = candidates.map((path) => nativeImage.createFromPath(path)).find((image) => !image.isEmpty())
   const image = fileImage ?? nativeImage.createFromDataURL(EMBEDDED_APP_ICON)
