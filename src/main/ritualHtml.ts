@@ -155,22 +155,70 @@ function buildRitualAudioScript(
     osc.stop(ctx.currentTime + at + 0.18);
   };
 
+  const addRiser = (ctx, destination, startAt, endAt, startFrequency, endFrequency, gainValue) => {
+    addTone(ctx, destination, startFrequency, 'sawtooth', gainValue, startAt, endAt, endFrequency);
+    addTone(ctx, destination, startFrequency * 1.5, 'triangle', gainValue * 0.36, startAt + 0.05, endAt, endFrequency * 1.48);
+  };
+
+  const addWhoosh = (ctx, destination, startAt, endAt, gainValue, startFrequency, endFrequency) => {
+    const seconds = Math.max(0.2, endAt - startAt);
+    const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * seconds), ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i += 1) data[i] = (Math.random() * 2 - 1) * 0.22;
+    const source = ctx.createBufferSource();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    filter.type = 'bandpass';
+    filter.Q.setValueAtTime(0.9, ctx.currentTime + startAt);
+    filter.frequency.setValueAtTime(startFrequency, ctx.currentTime + startAt);
+    ramp(filter.frequency, endFrequency, ctx.currentTime + endAt);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime + startAt);
+    ramp(gain.gain, gainValue, ctx.currentTime + startAt + 0.35);
+    ramp(gain.gain, 0.0001, ctx.currentTime + endAt);
+    source.buffer = buffer;
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(destination);
+    source.start(ctx.currentTime + startAt);
+    source.stop(ctx.currentTime + endAt + 0.05);
+  };
+
+  const addHit = (ctx, destination, at, frequency, gainValue) => {
+    addTone(ctx, destination, frequency, 'sine', gainValue, at, at + 1.9, frequency * 0.36);
+    addTone(ctx, destination, frequency * 1.98, 'triangle', gainValue * 0.18, at + 0.025, at + 1.25, frequency * 0.72);
+    addNoise(ctx, destination, at, at + 0.52, gainValue * 0.18, 'lowpass', 460);
+  };
+
+  const addWarmChord = (ctx, destination, at, endAt, rootFrequency, gainValue) => {
+    addTone(ctx, destination, rootFrequency, 'sine', gainValue, at, endAt, rootFrequency * 1.015);
+    addTone(ctx, destination, rootFrequency * 1.5, 'triangle', gainValue * 0.52, at + 0.08, endAt, rootFrequency * 1.52);
+    addTone(ctx, destination, rootFrequency * 2, 'sine', gainValue * 0.38, at + 0.18, endAt, rootFrequency * 2.03);
+    addTone(ctx, destination, rootFrequency * 2.5, 'triangle', gainValue * 0.2, at + 0.28, endAt - 0.2, rootFrequency * 2.54);
+  };
+
   const playEntry = (ctx, master) => {
     ramp(master.gain, targetVolume, ctx.currentTime + 1.1);
     ramp(master.gain, targetVolume * 0.82, ctx.currentTime + durationSeconds - 1.35);
     ramp(master.gain, 0.0001, ctx.currentTime + durationSeconds - 0.16);
 
     if (ritualMode === 'meteor') {
-      addTone(ctx, master, 36, 'sine', 0.38, 0, durationSeconds - 0.3, 52);
-      addTone(ctx, master, 72, 'triangle', 0.13, 0.6, durationSeconds - 1.0, 108);
-      addTone(ctx, master, 520, 'sine', 0.035, 2.55, 4.08, 2900);
-      addTone(ctx, master, 1180, 'triangle', 0.024, 2.62, 3.9, 4200);
-      addNoise(ctx, master, 2.38, 4.58, 0.13, 'highpass', 4200);
-      addClick(ctx, master, 3.18, 1800, 0.035);
-      addImpact(ctx, master, 4.42, 48, 0.34);
-      addBell(ctx, master, 5.35, 392, 0.06);
-      addTone(ctx, master, 196, 'sine', 0.072, 5.4, durationSeconds - 0.9, 330);
-      addTone(ctx, master, 294, 'triangle', 0.04, 6.0, durationSeconds - 1.0, 441);
+      addTone(ctx, master, 28, 'sine', 0.48, 0, durationSeconds - 0.24, 42);
+      addTone(ctx, master, 56, 'triangle', 0.18, 0.35, durationSeconds - 0.8, 84);
+      addNoise(ctx, master, 0.1, 2.45, 0.062, 'lowpass', 760);
+      addRiser(ctx, master, 2.0, 4.75, 210, 3600, 0.052);
+      addRiser(ctx, master, 2.75, 5.32, 420, 5200, 0.034);
+      addWhoosh(ctx, master, 2.18, 3.65, 0.16, 900, 5200);
+      addWhoosh(ctx, master, 3.08, 4.92, 0.18, 620, 6400);
+      addClick(ctx, master, 3.22, 2100, 0.032);
+      addClick(ctx, master, 3.86, 3200, 0.025);
+      addHit(ctx, master, 4.62, 52, 0.46);
+      addImpact(ctx, master, 4.7, 36, 0.32);
+      addBell(ctx, master, 5.08, 220, 0.055);
+      addBell(ctx, master, 5.56, 329.63, 0.045);
+      addWarmChord(ctx, master, 6.05, durationSeconds - 0.72, 130.81, 0.062);
+      addWarmChord(ctx, master, 7.15, durationSeconds - 0.82, 196, 0.045);
+      addTone(ctx, master, 392, 'sine', 0.032, 7.8, durationSeconds - 0.88, 587.33);
+      addNoise(ctx, master, 6.4, durationSeconds - 0.75, 0.038, 'highpass', 2600);
       return;
     }
 
