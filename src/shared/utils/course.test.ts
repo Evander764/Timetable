@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Course } from '@shared/types/app'
-import { doesCourseAppear, getCoursesForDate, getNextCourse } from './course'
+import { doesCourseAppear, getCourseReminderCandidates, getCoursesForDate, getNextCourse, normalizeCourseReminderMinutes } from './course'
 
 const course: Course = {
   id: 'course-1',
@@ -35,5 +35,26 @@ describe('course utils', () => {
 
     expect(getCoursesForDate(courses, tuesday, termStartDate)).toHaveLength(1)
     expect(getNextCourse(courses, thursday, termStartDate)?.name).toBe('操作系统')
+  })
+  it('normalizes course reminder lead time', () => {
+    expect(normalizeCourseReminderMinutes(undefined)).toBe(15)
+    expect(normalizeCourseReminderMinutes(0)).toBe(1)
+    expect(normalizeCourseReminderMinutes(121)).toBe(120)
+    expect(normalizeCourseReminderMinutes(5.4)).toBe(5)
+  })
+
+  it('finds reminder candidates only before valid current-day courses', () => {
+    const termStartDate = '2026-03-02'
+    const now = new Date('2026-03-10T07:46:00')
+    const courses: Course[] = [
+      course,
+      { ...course, id: 'course-2', startTime: '08:30', endTime: '09:10' },
+      { ...course, id: 'course-3', repeatType: 'odd' },
+    ]
+
+    const candidates = getCourseReminderCandidates(courses, now, termStartDate, 20, 15)
+    expect(candidates.map((item) => item.id)).toEqual(['course-1'])
+    expect(getCourseReminderCandidates(courses, new Date('2026-03-10T08:00:00'), termStartDate, 20, 15)).toHaveLength(0)
+    expect(getCourseReminderCandidates(courses, now, termStartDate, 1, 15)).toHaveLength(0)
   })
 })

@@ -10,7 +10,7 @@ export function PageHeader({ title, subtitle, actions, children }: PageHeaderPro
   return (
     <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 className="text-[26px] font-semibold text-slate-900">{title}</h1>
+        <h1 className="font-serif text-[28px] font-semibold tracking-tight text-slate-950">{title}</h1>
         {subtitle ? <p className="mt-1.5 text-sm text-[var(--color-text-soft)]">{subtitle}</p> : null}
         {children}
       </div>

@@ -1,253 +1,459 @@
 import type { ReactNode } from 'react'
-import { CalendarClock, CheckCircle2, FolderClock, GraduationCap, Quote, Target } from 'lucide-react'
-import defaultBackground from '@renderer/assets/default-background.svg'
-import { Card } from '@renderer/components/Card'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Archive, Check, ChevronRight, Clock, Menu, Play, X } from 'lucide-react'
 import { EmptyState } from '@renderer/components/EmptyState'
 import { LoadingState } from '@renderer/components/LoadingState'
-import { MetricRing } from '@renderer/components/MetricRing'
-import { PageHeader } from '@renderer/components/PageHeader'
-import { ProgressBar } from '@renderer/components/ProgressBar'
 import { useAppStore } from '@renderer/store/appStore'
-import { getCoursesForDate, getNextCourse } from '@shared/utils/course'
+import type { RitualWorkMode } from '@shared/types/app'
+import type { CourseOccurrence, TodayCourseStatus } from '@shared/utils/course'
+import { getCoursesForDate, getNextCourse, getTodayCourseStatus } from '@shared/utils/course'
 import { formatDateKey, getCompactChineseDate, getChineseWeekdayLabel, getLunarLabel } from '@shared/utils/date'
-import { getActiveGoalCount } from '@shared/utils/goals'
-import { getCompletionRate, getDayProgressBreakdown, getRemainingTimeToday, getTaskStreak, getTasksForDate } from '@shared/utils/tasks'
+import { getCompletionRate, getDayProgressBreakdown, getRemainingTimeToday, getTasksForDate } from '@shared/utils/tasks'
+
+type TimelineItem = {
+  time: string
+  title: string
+  meta: string
+  active?: boolean
+}
+
+const sectionLabels = ['开场问题', '下一节点', '执行队列', '今日归档']
+
+const commandLinks = [
+  { to: '/schedule', label: '课程账本' },
+  { to: '/daily-tasks', label: '执行队列' },
+  { to: '/long-term-goals', label: '目标档案' },
+  { to: '/memos', label: '备忘档案' },
+]
+
+const workModeOptions: Array<{ value: RitualWorkMode; label: string }> = [
+  { value: 'workbench', label: '工作台点亮' },
+  { value: 'stamp', label: '印章落定' },
+  { value: 'focus', label: '晨光聚焦' },
+]
 
 export function OverviewPage() {
   const data = useAppStore((state) => state.data)
+  const updateData = useAppStore((state) => state.updateData)
+  const updateSettings = useAppStore((state) => state.updateSettings)
+  const [now, setNow] = useState(() => new Date())
+  const [commandOpen, setCommandOpen] = useState(false)
+  const [activeSection, setActiveSection] = useState(0)
+  const [workRitualRunning, setWorkRitualRunning] = useState(false)
+  const sectionRefs = useRef<Array<HTMLElement | null>>([])
+
+  const goToSection = useCallback((index: number) => {
+    const nextIndex = Math.min(sectionLabels.length - 1, Math.max(0, index))
+    setActiveSection(nextIndex)
+    sectionRefs.current[nextIndex]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    const sections = sectionRefs.current.filter((section): section is HTMLElement => Boolean(section))
+    if (!sections.length) {
+      return
+    }
+
+    const root = sections[0].closest('main')
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntry = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0]
+        const index = Number((visibleEntry?.target as HTMLElement | undefined)?.dataset.sectionIndex)
+        if (Number.isFinite(index)) {
+          setActiveSection(index)
+        }
+      },
+      {
+        root,
+        rootMargin: '-12% 0px -58% 0px',
+        threshold: [0.18, 0.34, 0.5, 0.68],
+      },
+    )
+
+    sections.forEach((section) => observer.observe(section))
+    return () => observer.disconnect()
+  }, [data])
 
   if (!data) {
     return <LoadingState />
   }
 
-  const today = new Date()
-  const todayCourses = getCoursesForDate(data.courses, today, data.appSettings.termStartDate, data.appSettings.termWeekCount)
-  const nextCourse = getNextCourse(data.courses, today, data.appSettings.termStartDate, data.appSettings.termWeekCount)
-  const todayTasks = getTasksForDate(data.dailyTasks, today)
-  const progress = getDayProgressBreakdown(data.dailyTasks, today)
-  const completionRate = getCompletionRate(data.dailyTasks, today)
+  const todayKey = formatDateKey(now)
+  const todayCourses = getCoursesForDate(data.courses, now, data.appSettings.termStartDate, data.appSettings.termWeekCount)
+  const courseStatus = getTodayCourseStatus(data.courses, now, data.appSettings.termStartDate, data.appSettings.termWeekCount)
+  const nextAnyCourse = getNextCourse(data.courses, now, data.appSettings.termStartDate, data.appSettings.termWeekCount)
+  const todayTasks = getTasksForDate(data.dailyTasks, now)
+  const completionRate = getCompletionRate(data.dailyTasks, now)
+  const taskProgress = getDayProgressBreakdown(data.dailyTasks, now)
+  const pendingTasks = todayTasks.filter((task) => !task.completions[todayKey])
   const activeGoals = data.longTermGoals.filter((goal) => goal.status === 'active')
-  const activeGoalCount = getActiveGoalCount(data.longTermGoals)
   const activeMemos = data.memos.filter((memo) => memo.status === 'active')
-  const backgroundPreview = data.desktopSettings.backgroundImage
-    ? window.timeable.filePathToUrl(data.desktopSettings.backgroundImage)
-    : defaultBackground
+  const featuredCourse = courseStatus.currentCourse ?? courseStatus.nextCourse ?? nextAnyCourse
+  const featuredLabel = getFeaturedCourseLabel(courseStatus, featuredCourse)
+  const featuredCountdown = getFeaturedCourseCountdown(now, courseStatus, featuredCourse)
+  const timelineItems = buildTimelineItems(now, todayCourses, todayTasks, todayKey, courseStatus)
+
+  async function toggleTask(taskId: string, completed: boolean) {
+    await updateData({ type: 'task/toggle', payload: { id: taskId, date: todayKey, completed } })
+  }
+
+  async function startWorkRitual() {
+    if (workRitualRunning) {
+      return
+    }
+
+    setWorkRitualRunning(true)
+    try {
+      await window.timeable.startWorkRitual()
+    } finally {
+      setWorkRitualRunning(false)
+    }
+  }
+
+  async function runWorkMode(mode: RitualWorkMode) {
+    if (workRitualRunning || !data) {
+      return
+    }
+
+    setWorkRitualRunning(true)
+    try {
+      if (data.appSettings.workRitualMode !== mode) {
+        await updateSettings({ appSettings: { workRitualMode: mode } })
+      }
+      await window.timeable.startWorkRitual()
+    } finally {
+      setWorkRitualRunning(false)
+    }
+  }
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="总览" subtitle="把课程、任务、目标、备忘与桌面挂件集中在一个控制中心。" />
-
-      <div className="grid grid-cols-5 gap-4">
-        <Card className="flex items-center gap-5">
-          <MetricRing value={completionRate} size={98} label="良好" />
-          <div>
-            <div className="text-sm text-slate-500">今日完成率</div>
-            <div className="mt-2 text-3xl font-semibold text-slate-900">{completionRate}%</div>
-          </div>
-        </Card>
-        <StatBlock icon={<CheckCircle2 className="text-blue-600" />} title="待办数" value={`${progress.pending}`} subtitle="待完成任务" />
-        <StatBlock icon={<GraduationCap className="text-violet-600" />} title="课程数" value={`${todayCourses.length}`} subtitle="今日课程" />
-        <StatBlock icon={<Target className="text-emerald-600" />} title="进行中目标" value={`${activeGoalCount}`} subtitle="正在推进" />
-        <Card className="flex items-center gap-4">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-blue-600">
-            <CalendarClock size={28} />
-          </div>
-          <div>
-            <div className="text-3xl font-semibold text-slate-900">{getCompactChineseDate(today)}</div>
-            <div className="mt-2 text-base text-slate-500">{getChineseWeekdayLabel(today)}</div>
-            <div className="mt-1 text-sm text-slate-400">{getLunarLabel(today)}</div>
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-[1.06fr_1fr_1.12fr] gap-4">
-        <Card>
-          <SectionTitle title="今天课程" trailing={todayCourses.length ? `${todayCourses.length} 节` : undefined} />
-          <div className="mt-4 space-y-3">
-            {todayCourses.length ? (
-              todayCourses.slice(0, 4).map((course, index) => (
-                <div key={course.id} className="rounded-[22px] border border-slate-200/80 bg-white/90 p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-2xl font-semibold text-slate-900">{course.startTime}</div>
-                    {index === 0 ? (
-                      <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-600">下一节课</span>
-                    ) : null}
-                  </div>
-                  <div className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{course.name}</div>
-                  <div className="mt-2 flex flex-wrap gap-4 text-sm text-slate-500">
-                    <span>{course.endTime}</span>
-                    <span>{course.teacher}</span>
-                    <span>{course.location}</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <EmptyState title="今天没有课程" description="当前日期下没有匹配课程，可以去课程表页继续添加安排。" />
-            )}
-          </div>
-        </Card>
-
-        <Card>
-          <SectionTitle title="每日任务" trailing={`${completionRate}%`} />
-          <div className="mt-5 space-y-4">
-            <ProgressBar value={completionRate} className="h-3" />
-            <div className="grid grid-cols-[1fr_120px] gap-4">
-              <div className="space-y-3">
-                {todayTasks.slice(0, 5).map((task) => {
-                  const completed = Boolean(task.completions[formatDateKey(today)])
-                  return (
-                    <div key={task.id} className="flex items-center gap-3 rounded-[18px] border border-slate-200/80 bg-white/85 px-4 py-3">
-                      <div className={`h-5 w-5 rounded-md border ${completed ? 'border-blue-500 bg-blue-500' : 'border-slate-300 bg-white'}`} />
-                      <span className="flex-1 text-lg text-slate-800">{task.title}</span>
-                    </div>
-                  )
-                })}
-              </div>
-              <div className="rounded-[24px] border border-slate-200/70 bg-white/88 p-4 text-center">
-                <div className="text-sm text-slate-500">连续打卡</div>
-                <div className="mt-2 text-5xl font-semibold text-slate-900">{getTaskStreak(data.dailyTasks, today)}</div>
-                <div className="mt-2 text-base text-slate-500">继续加油</div>
-                <div className="mt-4 text-4xl">🔥</div>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <SectionTitle title="长期任务" trailing={`${activeGoals.length} 项`} />
-          <div className="mt-4 space-y-3">
-            {activeGoals.slice(0, 2).map((goal) => (
-              <div key={goal.id} className="rounded-[24px] border border-slate-200/80 bg-white/90 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-2xl font-semibold tracking-tight text-slate-900">{goal.title}</div>
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-600">进行中</span>
-                </div>
-                <div className="mt-4">
-                  <ProgressBar value={goal.progress} className="h-3" accentClassName="bg-emerald-500" />
-                </div>
-                <div className="mt-3 text-sm text-slate-500">
-                  目标日期：{goal.targetDate ?? '未设定'} 当前阶段：
-                  {goal.stages.find((stage) => stage.status === 'active')?.title ?? '未开始'}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-[0.92fr_0.88fr_0.9fr_0.92fr] gap-4">
-        <Card>
-          <SectionTitle title="备忘录" trailing={`${activeMemos.length} 条`} />
-          <div className="mt-4 space-y-3">
-            {activeMemos.slice(0, 2).map((memo) => (
-              <div key={memo.id} className="rounded-[22px] border border-amber-200/80 bg-amber-50/85 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-xl font-semibold text-slate-900">{memo.title}</div>
-                  <span className="rounded-full bg-white/80 px-3 py-1 text-sm text-amber-700">{memo.showOnDesktop ? '桌面显示' : '仅应用内'}</span>
-                </div>
-                <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">{memo.content}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card>
-          <SectionTitle title="倒计时卡片" trailing="实时更新" />
-          <div className="mt-6 text-center">
-            <div className="text-sm text-slate-500">今日剩余时间</div>
-            <div className="mt-4 text-6xl font-semibold tracking-tight text-[var(--color-primary)]">{getRemainingTimeToday(today)}</div>
-            <div className="mt-6 grid grid-cols-3 gap-2 text-center">
-              <SmallStat label="总任务" value={`${progress.total}`} />
-              <SmallStat label="已完成" value={`${progress.completed}`} valueClassName="text-emerald-600" />
-              <SmallStat label="待完成" value={`${progress.pending}`} />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="flex flex-col">
-          <SectionTitle title="道理卡片" trailing={<Quote size={18} className="text-blue-500" />} />
-          <div className="flex flex-1 flex-col justify-center px-4 py-3 text-center">
-            <div className="text-4xl text-slate-200">“</div>
-            <div className="text-[32px] font-semibold leading-[1.45] tracking-tight text-slate-900 whitespace-pre-line">
-              {data.principleCard.content}
-            </div>
-            <div className="mt-4 text-lg text-slate-500">{data.principleCard.author}</div>
-          </div>
-        </Card>
-
-        <Card>
-          <SectionTitle title="背景与设置" trailing="本地保存" />
-          <div className="mt-4 space-y-4">
-            <div className="grid gap-3 text-sm text-slate-600">
-              <StatusRow label="本地存储" value="JSON 格式" active />
-              <StatusRow label="自动保存" value={data.appSettings.autoSave ? '已开启' : '已关闭'} active={data.appSettings.autoSave} />
-              <StatusRow label="开机启动" value={data.appSettings.launchAtStartup ? '已启用' : '未启用'} active={data.appSettings.launchAtStartup} />
-              <StatusRow label="当前背景" value={data.desktopSettings.backgroundMeta?.name ?? '湖光山色'} active />
-            </div>
-            <div className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white/90">
-              <img src={backgroundPreview} alt="背景预览" className="h-32 w-full object-cover" />
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <div className="panel-card flex items-center justify-between px-6 py-5 text-sm text-slate-500">
-        <div className="flex items-center gap-3">
-          <FolderClock size={18} className="text-blue-500" />
-          <span>所有数据仅存储在本地，不会上云，也不依赖任何联网服务。</span>
+    <div className="timetable-calibration-page">
+      <header className="calibration-ledger-bar">
+        <div>
+          <span className="calibration-dot" />
+          <strong>TIMETABLE.OS</strong>
+          <em>DAY_LEDGER // {todayKey}</em>
         </div>
-        {nextCourse ? <span>下一节：{nextCourse.name} {nextCourse.startTime}</span> : <span>今天暂时没有后续课程安排</span>}
+        <div className="calibration-chapter">
+          <span>{String(activeSection + 1).padStart(2, '0')}</span>
+          <em>/ 04</em>
+          <strong>{sectionLabels[activeSection]}</strong>
+        </div>
+      </header>
+
+      <div className="calibration-layout">
+        <div className="calibration-sections">
+          <section
+            ref={(node) => {
+              sectionRefs.current[0] = node
+            }}
+            className="calibration-section calibration-hero-section"
+            data-section-index="0"
+          >
+            <div className="calibration-hero-copy">
+              <div className="calibration-tag">OPENING QUESTION // LOCAL DAY</div>
+              <h1>如果今天是最后一天，你打算怎么过？</h1>
+              <p>先校准方向，再进入任务。今天只追踪真正能推动生活向前的节点。</p>
+              <div className="calibration-work-actions">
+                <button
+                  type="button"
+                  className="calibration-work-button"
+                  disabled={workRitualRunning}
+                  onClick={() => void startWorkRitual()}
+                >
+                  <Play size={16} fill="currentColor" strokeWidth={2.4} />
+                  <span>{workRitualRunning ? '仪式进行中' : '开始工作'}</span>
+                </button>
+                <em>WORK RITUAL // PREPARE</em>
+                <div className="calibration-work-modes" role="group" aria-label="切换并播放工作仪式">
+                  {workModeOptions.map((option) => {
+                    const isActive = data.appSettings.workRitualMode === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={'calibration-work-mode' + (isActive ? ' is-active' : '')}
+                        disabled={workRitualRunning}
+                        onClick={() => void runWorkMode(option.value)}
+                        title={'设为默认并立即播放：' + option.label}
+                      >
+                        {option.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="calibration-date-card">
+              <span>{getCompactChineseDate(now)}</span>
+              <strong>{getChineseWeekdayLabel(now)}</strong>
+              <em>{getLunarLabel(now)}</em>
+              <small>{getRemainingTimeToday(now)} left</small>
+            </div>
+          </section>
+
+          <section
+            ref={(node) => {
+              sectionRefs.current[1] = node
+            }}
+            className="calibration-section calibration-section-dark calibration-node-section"
+            data-section-index="1"
+          >
+            <div className="calibration-node-copy">
+              <div className="calibration-tag">{featuredLabel}</div>
+              <h2>{featuredCourse ? featuredCourse.name : '今天没有课程压迫'}</h2>
+              <p>
+                {featuredCourse
+                  ? `${featuredCourse.startTime}-${featuredCourse.endTime} · ${compactText(featuredCourse.teacher, featuredCourse.location)}`
+                  : '把注意力集中在执行队列、目标档案和今晚的归档。'}
+              </p>
+            </div>
+            <div className="calibration-meter" role="status" aria-live="polite" aria-atomic="true">
+              <span>{featuredCourse ? '距离节点' : '剩余今日'}</span>
+              <strong>{featuredCourse ? featuredCountdown : getRemainingTimeToday(now)}</strong>
+              <em>完成率 {completionRate}% · 待办 {taskProgress.pending}</em>
+            </div>
+            <div className="calibration-timeline-grid">
+              {timelineItems.slice(0, 6).map((item) => (
+                <TimelineLedgerItem key={`${item.time}-${item.title}`} item={item} />
+              ))}
+            </div>
+          </section>
+
+          <section
+            ref={(node) => {
+              sectionRefs.current[2] = node
+            }}
+            className="calibration-section calibration-queue-section"
+            data-section-index="2"
+          >
+            <div className="calibration-section-title">
+              <span>EXECUTION QUEUE</span>
+              <strong>
+                {taskProgress.completed}/{taskProgress.total}
+              </strong>
+            </div>
+            <div className="calibration-progress-track" aria-label={`今日任务完成率 ${completionRate}%`}>
+              <span style={{ width: `${completionRate}%` }} />
+            </div>
+            <div className="calibration-task-list">
+              {todayTasks.length ? (
+                todayTasks.slice(0, 10).map((task, index) => {
+                  const completed = Boolean(task.completions[todayKey])
+                  return (
+                    <button
+                      key={task.id}
+                      type="button"
+                      className={`calibration-task-row ${completed ? 'done' : ''}`}
+                      onClick={() => void toggleTask(task.id, !completed)}
+                    >
+                      <span className="calibration-task-index">{String(index + 1).padStart(2, '0')}</span>
+                      <span className="calibration-task-check">{completed ? <Check size={15} strokeWidth={2.7} /> : null}</span>
+                      <span className="calibration-task-body">
+                        <strong>{task.title || '未命名任务'}</strong>
+                        <em>{task.dueTime ? `${task.dueTime} · ${task.priority}` : task.priority}</em>
+                      </span>
+                      <span className="calibration-task-stamp">{completed ? 'DONE' : ''}</span>
+                    </button>
+                  )
+                })
+              ) : (
+                <EmptyState title="今天没有执行项" description="可以前往执行队列添加一项真正重要的任务。" />
+              )}
+            </div>
+          </section>
+
+          <section
+            ref={(node) => {
+              sectionRefs.current[3] = node
+            }}
+            className="calibration-section calibration-section-dark calibration-archive-section"
+            data-section-index="3"
+          >
+            <div className="calibration-archive-copy">
+              <div className="calibration-tag">ARCHIVE POINT // EVENING</div>
+              <h2>把今天收进账本。</h2>
+              <p>归档不是退出程序，而是正式结束今天。它会播放结束仪式，并记录今日已归档。</p>
+              <button type="button" className="calibration-archive-button" onClick={() => void window.timeable.windowControl('archive')}>
+                <Archive size={18} />
+                结束今日
+              </button>
+            </div>
+            <div className="calibration-audit-stack">
+              <AuditPanel title="系统状态" meta="LOCAL ONLY">
+                <AuditRow label="今日课程" value={`${todayCourses.length}`} />
+                <AuditRow label="待执行" value={`${pendingTasks.length}`} />
+                <AuditRow label="进行中目标" value={`${activeGoals.length}`} />
+                <AuditRow label="备忘记录" value={`${activeMemos.length}`} />
+              </AuditPanel>
+              <AuditPanel title="目标档案" meta={`${activeGoals.length} 个进行中`}>
+                {activeGoals.length ? (
+                  activeGoals.slice(0, 3).map((goal) => <AuditRow key={goal.id} label={goal.title} value={`${goal.progress}%`} />)
+                ) : (
+                  <div className="calibration-empty-line">暂无进行中的长期目标。</div>
+                )}
+              </AuditPanel>
+              <AuditPanel title="备忘档案" meta={`${activeMemos.length} 条记录`}>
+                {activeMemos.length ? (
+                  activeMemos.slice(0, 3).map((memo) => <AuditRow key={memo.id} label={memo.title} value={memo.showOnDesktop ? '桌面' : '应用'} />)
+                ) : (
+                  <div className="calibration-empty-line">暂无进行中的备忘。</div>
+                )}
+              </AuditPanel>
+            </div>
+          </section>
+        </div>
+
+        <nav className="calibration-section-index" aria-label="今日校准台章节索引">
+          {sectionLabels.map((label, index) => (
+            <button
+              key={label}
+              type="button"
+              className={index === activeSection ? 'active' : ''}
+              onClick={() => goToSection(index)}
+            >
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <strong>{label}</strong>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <div className="os-floating-menu">
+        {commandOpen ? (
+          <div className="os-command-list">
+            {commandLinks.map((item, index) => (
+              <Link key={item.to} to={item.to} className="os-command-item" onClick={() => setCommandOpen(false)}>
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <strong>{item.label}</strong>
+                <ChevronRight size={16} />
+              </Link>
+            ))}
+          </div>
+        ) : null}
+        <button
+          type="button"
+          className={`os-command-trigger ${commandOpen ? 'open' : ''}`}
+          aria-label={commandOpen ? '关闭快捷菜单' : '打开快捷菜单'}
+          onClick={() => setCommandOpen((open) => !open)}
+        >
+          {commandOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
     </div>
   )
 }
 
-function StatBlock({
-  icon,
-  title,
-  value,
-  subtitle,
-}: {
-  icon: ReactNode
-  title: string
-  value: string
-  subtitle: string
-}) {
+function TimelineLedgerItem({ item }: { item: TimelineItem }) {
   return (
-    <Card className="flex items-center gap-4">
-      <div className="grid h-14 w-14 place-items-center rounded-2xl bg-blue-50">{icon}</div>
-      <div>
-        <div className="text-sm text-slate-500">{title}</div>
-        <div className="mt-1 text-4xl font-semibold text-slate-900">{value}</div>
-        <div className="mt-1 text-sm text-slate-500">{subtitle}</div>
+    <div className={`calibration-timeline-row ${item.active ? 'active' : ''}`}>
+      <Clock size={15} />
+      <time>{item.time}</time>
+      <span>
+        <strong>{item.title}</strong>
+        <em>{item.meta}</em>
+      </span>
+    </div>
+  )
+}
+
+function AuditPanel({ title, meta, children }: { title: string; meta: string; children: ReactNode }) {
+  const titleId = useId()
+  return (
+    <section className="calibration-audit-panel" aria-labelledby={titleId}>
+      <div className="calibration-section-title">
+        <span id={titleId}>{title}</span>
+        <strong>{meta}</strong>
       </div>
-    </Card>
+      <div className="calibration-audit-body">{children}</div>
+    </section>
   )
 }
 
-function SectionTitle({ title, trailing }: { title: string; trailing?: ReactNode }) {
+function AuditRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <h2 className="text-[30px] font-semibold tracking-tight text-slate-900">{title}</h2>
-      {typeof trailing === 'string' ? <span className="text-sm text-slate-500">{trailing}</span> : trailing}
-    </div>
-  )
-}
-
-function SmallStat({ label, value, valueClassName }: { label: string; value: string; valueClassName?: string }) {
-  return (
-    <div className="rounded-[18px] border border-slate-200/80 bg-white/85 px-3 py-4">
-      <div className="text-sm text-slate-500">{label}</div>
-      <div className={`mt-2 text-3xl font-semibold text-slate-900 ${valueClassName ?? ''}`}>{value}</div>
-    </div>
-  )
-}
-
-function StatusRow({ label, value, active }: { label: string; value: string; active?: boolean }) {
-  return (
-    <div className="flex items-center justify-between rounded-[18px] border border-slate-200/80 bg-white/85 px-4 py-3">
+    <div className="calibration-audit-row">
       <span>{label}</span>
-      <span className={active ? 'font-medium text-emerald-600' : 'font-medium text-slate-700'}>{value}</span>
+      <strong>{value}</strong>
     </div>
   )
+}
+
+function getFeaturedCourseLabel(status: TodayCourseStatus, featuredCourse: CourseOccurrence | null): string {
+  if (!featuredCourse) {
+    return 'CURRENT_SLOT // FREE'
+  }
+  return status.currentCourse ? 'CURRENT_COURSE // LIVE' : 'NEXT_COURSE // READY'
+}
+
+function getFeaturedCourseCountdown(now: Date, status: TodayCourseStatus, featuredCourse: CourseOccurrence | null): string {
+  if (!featuredCourse) {
+    return '--:--'
+  }
+  const targetTime = status.currentCourse === featuredCourse ? featuredCourse.endTime : featuredCourse.startTime
+  return formatDurationToClock(getTimeDifference(now, targetTime))
+}
+
+function buildTimelineItems(
+  now: Date,
+  courses: CourseOccurrence[],
+  tasks: ReturnType<typeof getTasksForDate>,
+  dateKey: string,
+  status: TodayCourseStatus,
+): TimelineItem[] {
+  const courseItems = courses.map((course) => ({
+    time: course.startTime,
+    title: course.name,
+    meta: compactText(course.teacher, course.location),
+    active: course.id === status.currentCourse?.id || course.id === status.nextCourse?.id,
+  }))
+  const taskItems = tasks
+    .filter((task) => task.dueTime)
+    .map((task) => ({
+      time: task.dueTime ?? '18:00',
+      title: task.title || '未命名任务',
+      meta: task.completions[dateKey] ? '已完成' : '待执行',
+      active: !task.completions[dateKey] && Math.abs(getTimeDifference(now, task.dueTime ?? '18:00')) < 30 * 60 * 1000,
+    }))
+
+  return [
+    { time: '08:00', title: '晨间校准', meta: '启动日程' },
+    ...courseItems,
+    ...taskItems,
+    { time: '23:30', title: '今日归档', meta: '收束与复盘' },
+  ]
+    .sort((left, right) => toMinutes(left.time) - toMinutes(right.time))
+    .slice(0, 9)
+}
+
+function getTimeDifference(date: Date, time: string): number {
+  const [hour = 0, minute = 0] = time.split(':').map((part) => Number(part))
+  const target = new Date(date)
+  target.setHours(hour, minute, 0, 0)
+  return target.getTime() - date.getTime()
+}
+
+function formatDurationToClock(diffMs: number): string {
+  const safeDiff = Math.max(0, diffMs)
+  const hours = Math.floor(safeDiff / 3_600_000)
+  const minutes = Math.floor((safeDiff % 3_600_000) / 60_000)
+  const seconds = Math.floor((safeDiff % 60_000) / 1000)
+  return [hours, minutes, seconds].map((value) => String(value).padStart(2, '0')).join(':')
+}
+
+function toMinutes(time: string): number {
+  const [hour = 0, minute = 0] = time.split(':').map((part) => Number(part))
+  return hour * 60 + minute
+}
+
+function compactText(...parts: Array<string | undefined>): string {
+  return parts.map((part) => part?.trim()).filter(Boolean).join(' · ') || '未记录'
 }

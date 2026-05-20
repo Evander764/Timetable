@@ -1,11 +1,36 @@
-import { useEffect } from 'react'
-import { Download, FolderOpen, FolderOutput, Power, RefreshCw, RotateCcw, UploadCloud } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Download, FolderOpen, FolderOutput, Play, Power, RefreshCw, RotateCcw, UploadCloud } from 'lucide-react'
 import { Button } from '@renderer/components/Button'
 import { Card } from '@renderer/components/Card'
 import { LoadingState } from '@renderer/components/LoadingState'
 import { PageHeader } from '@renderer/components/PageHeader'
 import { Toggle } from '@renderer/components/Toggle'
 import { useAppStore } from '@renderer/store/appStore'
+import type { RitualEntryMode, RitualExitMode, RitualWorkMode } from '@shared/types/app'
+
+const allRitualEntryOptions: Array<{ value: RitualEntryMode | RitualWorkMode; label: string }> = [
+  { value: 'door', label: '开门光缝' },
+  { value: 'curtain', label: '升起帷幕' },
+  { value: 'meteor', label: '流星破晓' },
+  { value: 'sunrise', label: '日出破晓' },
+  { value: 'workbench', label: '工作台点亮' },
+  { value: 'stamp', label: '印章落定' },
+  { value: 'focus', label: '晨光聚焦' },
+]
+
+const entryRitualOptions = allRitualEntryOptions.filter((option) =>
+  option.value === 'door' || option.value === 'curtain' || option.value === 'meteor' || option.value === 'sunrise',
+) as Array<{ value: RitualEntryMode; label: string }>
+
+const workRitualOptions = allRitualEntryOptions.filter((option) =>
+  option.value === 'workbench' || option.value === 'stamp' || option.value === 'focus',
+) as Array<{ value: RitualWorkMode; label: string }>
+
+const exitRitualOptions: Array<{ value: RitualExitMode; label: string }> = [
+  { value: 'door', label: '关门归档' },
+  { value: 'curtain', label: '降下帷幕' },
+  { value: 'moon', label: '月升归档' },
+]
 
 export function DataStartupPage() {
   const data = useAppStore((state) => state.data)
@@ -20,6 +45,22 @@ export function DataStartupPage() {
   const openBackupDir = useAppStore((state) => state.openBackupDir)
   const checkForUpdate = useAppStore((state) => state.checkForUpdate)
   const installUpdate = useAppStore((state) => state.installUpdate)
+  const [workRitualRunning, setWorkRitualRunning] = useState(false)
+
+  async function previewWorkRitual(mode: RitualWorkMode) {
+    if (workRitualRunning || !data) {
+      return
+    }
+    setWorkRitualRunning(true)
+    try {
+      if (data.appSettings.workRitualMode !== mode) {
+        await updateSettings({ appSettings: { workRitualMode: mode } }, '工作仪式模式已更新。')
+      }
+      await window.timeable.startWorkRitual()
+    } finally {
+      setWorkRitualRunning(false)
+    }
+  }
 
   useEffect(() => {
     void loadBackups()
@@ -30,10 +71,11 @@ export function DataStartupPage() {
   }
 
   const latestBackup = backups[0]
+  const ritualMusicVolume = data.appSettings.ritualMusicVolume ?? 0.12
 
   return (
     <div className="space-y-6">
-      <PageHeader title="数据与启动" subtitle="管理本地数据、备份恢复、开机启动和 GitHub 更新。" />
+      <PageHeader title="数据中枢" subtitle="管理本地数据、源码外归档、备份恢复、开机启动和仪式开关。" />
 
       <div className="grid grid-cols-[1.15fr_0.85fr] gap-4">
         <Card>
@@ -48,6 +90,7 @@ export function DataStartupPage() {
           </div>
           <div className="mt-5 grid gap-3">
             <InfoRow label="数据路径" value={data.appSettings.dataPath} />
+            <InfoRow label="源码外档案库" value="D:\\software\\Timetable_data_archive" />
             <InfoRow label="自动保存" value={data.appSettings.autoSave ? '已启用' : '已关闭'} />
             <InfoRow label="上次保存" value={formatDateTime(data.appSettings.lastSavedAt)} />
             <InfoRow label="上次导出" value={formatDateTime(data.appSettings.lastExportedAt)} />
@@ -83,6 +126,81 @@ export function DataStartupPage() {
               <ToggleRow label="开机自动启动" checked={data.appSettings.launchAtStartup} onChange={(checked) => void setStartup(checked)} />
               <ToggleRow label="JSON 自动保存" checked={data.appSettings.autoSave} onChange={(checked) => void updateSettings({ appSettings: { autoSave: checked } }, '自动保存策略已更新。')} />
               <ToggleRow label="自动备份" checked={data.appSettings.autoBackupEnabled} onChange={(checked) => void updateSettings({ appSettings: { autoBackupEnabled: checked } }, checked ? '已开启自动备份。' : '已关闭自动备份。')} />
+              <ToggleRow label="每日入场仪式" checked={data.appSettings.ritualIntroEnabled !== false} onChange={(checked) => void updateSettings({ appSettings: { ritualIntroEnabled: checked } }, checked ? '已开启每日入场仪式。' : '已关闭每日入场仪式。')} />
+              <ToggleRow label="每日结束仪式" checked={data.appSettings.ritualOutroEnabled !== false} onChange={(checked) => void updateSettings({ appSettings: { ritualOutroEnabled: checked } }, checked ? '已开启每日结束仪式。' : '已关闭每日结束仪式。')} />
+              <div className="grid gap-3 rounded-[14px] border border-slate-200/80 bg-white/88 p-4">
+                <div className="text-sm font-semibold text-slate-700">仪式动画模式</div>
+                <SelectSetting
+                  label="开启动画"
+                  value={data.appSettings.ritualEntryMode ?? 'door'}
+                  options={entryRitualOptions}
+                  onChange={(value) => void updateSettings({ appSettings: { ritualEntryMode: value as RitualEntryMode } }, '开启动画模式已更新。')}
+                />
+                <SelectSetting
+                  label="结束动画"
+                  value={data.appSettings.ritualExitMode ?? 'door'}
+                  options={exitRitualOptions}
+                  onChange={(value) => void updateSettings({ appSettings: { ritualExitMode: value as RitualExitMode } }, '结束动画模式已更新。')}
+                />
+                <SelectSetting
+                  label="工作仪式动画"
+                  value={data.appSettings.workRitualMode ?? 'workbench'}
+                  options={workRitualOptions}
+                  onChange={(value) => void updateSettings({ appSettings: { workRitualMode: value as RitualWorkMode } }, '工作仪式模式已更新。')}
+                />
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="text-xs font-medium text-slate-500">一键试播</span>
+                  {workRitualOptions.map((option) => {
+                    const isActive = (data.appSettings.workRitualMode ?? 'workbench') === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        disabled={workRitualRunning}
+                        onClick={() => void previewWorkRitual(option.value)}
+                        title={`设为默认并立即播放：${option.label}`}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                          isActive
+                            ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                            : 'border-slate-300 bg-white text-slate-600 hover:border-orange-400 hover:bg-orange-50/60 hover:text-slate-900'
+                        } ${workRitualRunning ? 'cursor-wait opacity-60' : 'cursor-pointer'}`}
+                      >
+                        <Play size={12} fill="currentColor" strokeWidth={2.4} />
+                        <span>{option.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="grid gap-3 rounded-[14px] border border-slate-200/80 bg-white/88 p-4">
+                <div className="text-sm font-semibold text-slate-700">仪式文案</div>
+                <TextSetting
+                  label="开门浮现文字"
+                  value={data.appSettings.ritualEntryText}
+                  onChange={(value) => void updateSettings({ appSettings: { ritualEntryText: value } })}
+                />
+                <TextSetting
+                  label="关门第一行"
+                  value={data.appSettings.ritualExitLine1}
+                  onChange={(value) => void updateSettings({ appSettings: { ritualExitLine1: value } })}
+                />
+                <TextSetting
+                  label="关门第二行"
+                  value={data.appSettings.ritualExitLine2}
+                  onChange={(value) => void updateSettings({ appSettings: { ritualExitLine2: value } })}
+                />
+              </div>
+              <div className="grid gap-3 rounded-[14px] border border-slate-200/80 bg-white/88 p-4">
+                <div className="text-sm font-semibold text-slate-700">仪式声音</div>
+                <ToggleRow label="开场与结束背景音乐" checked={data.appSettings.ritualMusicEnabled !== false} onChange={(checked) => void updateSettings({ appSettings: { ritualMusicEnabled: checked } }, checked ? '已开启仪式背景音乐。' : '已关闭仪式背景音乐。')} />
+                <VolumeSetting
+                  label="音乐音量"
+                  value={ritualMusicVolume}
+                  disabled={data.appSettings.ritualMusicEnabled === false}
+                  onChange={(value) => void updateSettings({ appSettings: { ritualMusicVolume: value } })}
+                />
+                <p className="text-xs leading-5 text-slate-500">音乐由本地 Web Audio 实时合成，不写入外部音频文件。</p>
+              </div>
             </div>
           </Card>
         </div>
@@ -170,6 +288,71 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
       <span className="font-medium text-slate-700">{label}</span>
       <Toggle checked={checked} onCheckedChange={onChange} />
     </div>
+  )
+}
+
+function TextSetting({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="grid gap-2 text-sm text-slate-500">
+      {label}
+      <input className="form-input" value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  )
+}
+
+function SelectSetting<TValue extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: TValue
+  options: Array<{ value: TValue; label: string }>
+  onChange: (value: TValue) => void
+}) {
+  return (
+    <label className="grid gap-2 text-sm text-slate-500">
+      {label}
+      <select className="form-input cursor-pointer" value={value} onChange={(event) => onChange(event.target.value as TValue)}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function VolumeSetting({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string
+  value: number
+  disabled: boolean
+  onChange: (value: number) => void
+}) {
+  return (
+    <label className="grid gap-3 rounded-[14px] border border-slate-200/80 bg-white/88 px-4 py-3 text-sm text-slate-500">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-medium text-slate-700">{label}</span>
+        <span className="font-mono text-xs text-slate-500">{Math.round(value * 100)}%</span>
+      </div>
+      <input
+        className="w-full accent-[var(--color-primary)] disabled:opacity-40"
+        type="range"
+        min={0}
+        max={0.3}
+        step={0.01}
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </label>
   )
 }
 

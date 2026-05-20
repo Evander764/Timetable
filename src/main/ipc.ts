@@ -3,7 +3,9 @@ import { pathToFileURL } from 'node:url'
 import { BrowserWindow, dialog, ipcMain, screen, shell, type OpenDialogOptions } from 'electron'
 import type { AppData, WidgetPosition } from '@shared/types/app'
 import type { DataAction, OverlaySnapPositionPayload, OverlayWidgetUpdatePayload, SelectBackgroundResult, SettingsUpdatePayload, WindowControlAction } from '@shared/ipc'
+import { formatDateKey } from '@shared/utils/date'
 import { checkForGithubUpdate, installGithubUpdate } from './githubUpdate'
+import { showExitRitualSplash, showWorkRitualSplash } from './ritualWindows'
 import { getLaunchAtStartup, setLaunchAtStartup } from './startup'
 import type { AppStorage } from './storage'
 import type { WindowManager } from './windows'
@@ -110,7 +112,23 @@ export function registerIpcHandlers({ storage, windows, getData }: IpcServices):
     return checkForGithubUpdate()
   })
   ipcMain.handle('update:install', async () => installGithubUpdate(storage))
+  ipcMain.handle('ritual:work', async () => {
+    await storage.flush()
+    await showWorkRitualSplash(getData().appSettings)
+  })
   ipcMain.handle('window:control', async (event, action: WindowControlAction) => {
+    if (action === 'archive') {
+      await storage.flush()
+      const current = getData()
+      if (current.appSettings.ritualOutroEnabled !== false) {
+        const archiveDate = formatDateKey(new Date())
+        const next = await storage.updateSettings({ appSettings: { lastExitRitualDate: archiveDate } })
+        windows.broadcastData(next)
+        await showExitRitualSplash(next.appSettings)
+      }
+      await windows.handleMainWindowCloseIntent(getData())
+      return
+    }
     if (action === 'close') {
       await storage.flush()
       await windows.handleMainWindowCloseIntent(getData())

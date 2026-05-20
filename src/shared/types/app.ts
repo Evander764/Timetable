@@ -8,6 +8,9 @@ export type OverlayMode = 'floating' | 'desktop'
 export type CloseButtonAction = 'exit' | 'hide'
 export type UsageEntryType = 'web' | 'ai'
 export type PrincipleDisplayMode = 'embedded' | 'standalone'
+export type RitualEntryMode = 'door' | 'curtain' | 'meteor' | 'sunrise'
+export type RitualExitMode = 'door' | 'curtain' | 'moon'
+export type RitualWorkMode = 'workbench' | 'stamp' | 'focus'
 
 export type WidgetPosition =
   | 'top-left'
@@ -165,6 +168,16 @@ export type CountdownCard = {
   opacity: number
 }
 
+export type CountdownEvent = {
+  id: string
+  title: string
+  targetDate: string
+  targetTime?: string
+  note?: string
+  color?: string
+  createdAt: string
+}
+
 export type BackgroundMeta = {
   path: string
   name: string
@@ -196,6 +209,10 @@ export type AppSettings = {
   termStartDate: string
   termWeekCount: number
   timetableSlots: TimetableSlot[]
+  courseReminderEnabled: boolean
+  courseReminderMinutes: number
+  desktopAutoHideDelayMs: number
+  desktopLayoutLockEnabled: boolean
   desktopLayoutVersion?: number
   opacityVersion?: number
   autoBackupEnabled: boolean
@@ -206,6 +223,18 @@ export type AppSettings = {
   lastUpdateCheckAt?: string
   lastSavedAt?: string
   lastExportedAt?: string
+  lastEntryRitualDate?: string
+  lastExitRitualDate?: string
+  ritualIntroEnabled: boolean
+  ritualOutroEnabled: boolean
+  ritualEntryMode: RitualEntryMode
+  ritualExitMode: RitualExitMode
+  workRitualMode: RitualWorkMode
+  ritualMusicEnabled: boolean
+  ritualMusicVolume: number
+  ritualEntryText: string
+  ritualExitLine1: string
+  ritualExitLine2: string
 }
 
 export type AppData = {
@@ -215,6 +244,7 @@ export type AppData = {
   memos: Memo[]
   principleCard: PrincipleCard
   countdownCard: CountdownCard
+  countdownEvents: CountdownEvent[]
   desktopSettings: DesktopSettings
   appSettings: AppSettings
   browserUsage: Record<string, BrowserUsageDay>

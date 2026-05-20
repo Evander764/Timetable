@@ -19,6 +19,7 @@ const api: TimetableApi = {
   openBackupDir: () => ipcRenderer.invoke('data:openBackupDir'),
   checkForUpdate: () => ipcRenderer.invoke('update:check'),
   installUpdate: () => ipcRenderer.invoke('update:install'),
+  startWorkRitual: () => ipcRenderer.invoke('ritual:work'),
   saveBrowserUsageDay: (date) => ipcRenderer.invoke('browserUsage:saveDay', date),
   filePathToUrl: (filePath) => pathToFileURL(filePath).toString(),
   windowControl: (action) => ipcRenderer.invoke('window:control', action),

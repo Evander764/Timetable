@@ -21,6 +21,7 @@
   },
   win: {
     executableName: "Timetable",
+    icon: "buildResources/icon.ico",
     signAndEditExecutable: false
   },
   nsis: {

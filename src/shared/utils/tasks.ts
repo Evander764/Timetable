@@ -1,6 +1,6 @@
 import { endOfDay, startOfDay, subDays } from 'date-fns'
 import type { DailyTask, Priority } from '@shared/types/app'
-import { formatDateKey, getWeekdayIndex, isDateWithinRange } from './date'
+import { formatDateKey, getWeekdayIndex, isDateWithinRange, parseDateKey } from './date'
 import { isHolidayDate, isWorkdayDate } from './holidays'
 
 export function shouldTaskAppearOnDate(task: DailyTask, date: Date): boolean {
@@ -9,7 +9,7 @@ export function shouldTaskAppearOnDate(task: DailyTask, date: Date): boolean {
   }
 
   if (task.repeatRule === 'once') {
-    return task.startDate ? formatDateKey(new Date(task.startDate)) === formatDateKey(date) : false
+    return task.startDate ? formatDateKey(parseDateKey(task.startDate)) === formatDateKey(date) : false
   }
 
   if (task.repeatRule === 'daily') {

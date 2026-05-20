@@ -60,7 +60,7 @@ export function MemosPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="备忘录"
+        title="备忘档案"
         subtitle="记录短期提醒和灵感摘记，并决定哪些内容要同步到桌面。"
         actions={
           <Button variant="primary" onClick={() => {

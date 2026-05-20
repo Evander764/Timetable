@@ -65,7 +65,7 @@ export function LongTermGoalsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="长期任务管理"
+        title="目标档案"
         subtitle="制定目标、拆解阶段、持续推进，让长期成长变得清晰可执行。"
         actions={
           <>
