@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Clock3 } from 'lucide-react'
 import type { AppData } from '@shared/types/app'
+import { Badge } from '@renderer/components/Badge'
 import { getCountdownEventStatus, getNextCountdownEvent, getRemainingBeijingDayTime } from '@shared/utils/countdownEvents'
 import { getCompletionRate, getDayProgressBreakdown } from '@shared/utils/tasks'
 import { cn } from '@renderer/utils/cn'
@@ -66,7 +67,7 @@ function CountdownStrip({ className, label, value, meta }: { className?: string;
         <div className="truncate text-xs font-medium text-slate-500">{label}</div>
         <div className="truncate text-[20px] font-semibold leading-tight text-slate-900">{value}</div>
       </div>
-      <div className="max-w-[142px] shrink-0 truncate rounded-full bg-white/70 px-2.5 py-1 text-xs text-slate-500">{meta}</div>
+      <Badge className="max-w-[142px] truncate px-2.5 py-1 text-xs">{meta}</Badge>
     </button>
   )
 }

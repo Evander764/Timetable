@@ -1,4 +1,5 @@
 import type { AppData } from '@shared/types/app'
+import { Badge } from '@renderer/components/Badge'
 import { OverlayFrame } from './OverlayFrame'
 
 export function MemoWidget({ data }: { data: AppData }) {
@@ -7,16 +8,16 @@ export function MemoWidget({ data }: { data: AppData }) {
   return (
     <OverlayFrame title="备忘浮窗" dragLocked={data.desktopSettings.dragLocked}>
       {memo ? (
-        <div className="rounded-[22px] border border-amber-200/70 bg-amber-50/72 p-5">
+        <div className="rounded-[14px] border border-amber-200/70 bg-amber-50/72 p-4 shadow-[var(--elevation-card)]">
           <div className="flex items-center justify-between gap-3">
             <div className="text-[18px] font-semibold text-slate-900">{memo.title}</div>
-            <span className="rounded-full bg-white/70 px-3 py-1 text-sm text-blue-600">进行中</span>
+            <Badge tone="warm">进行中</Badge>
           </div>
           <div className="mt-4 line-clamp-5 text-[15px] leading-7 text-slate-700">{memo.content}</div>
           <div className="mt-4 text-sm text-slate-500">创建于 {new Date(memo.createdAt).toLocaleString()}</div>
         </div>
       ) : (
-        <div className="grid h-full place-items-center rounded-[22px] border border-dashed border-white/55 bg-white/24 text-center text-slate-500">
+        <div className="grid h-full place-items-center rounded-[14px] border border-dashed border-[var(--surface-border-light)] bg-white/24 text-center text-slate-500">
           当前没有需要展示到桌面的进行中备忘。
         </div>
       )}

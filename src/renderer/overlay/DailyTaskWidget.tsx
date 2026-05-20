@@ -34,15 +34,15 @@ export function DailyTaskWidget({ data }: { data: AppData }) {
           <div className="min-h-0 space-y-2 overflow-hidden">
             {visibleTasks.map((task) => (
               <div key={task.id} className="flex min-w-0 items-center gap-2.5 text-[15px] leading-tight text-slate-800">
-                <div className={`h-[18px] w-[18px] shrink-0 rounded-md border ${task.completions[dateKey] ? 'border-blue-500 bg-blue-500' : 'border-slate-300 bg-white/50'}`} />
+                <div className={`h-4 w-4 shrink-0 rounded-[var(--radius-sm)] border ${task.completions[dateKey] ? 'border-blue-500 bg-blue-500' : 'border-slate-300 bg-white/50'}`} />
                 <span className="min-w-0 truncate">{task.title}</span>
               </div>
             ))}
             {hiddenTaskCount > 0 ? (
-              <div className="rounded-full bg-white/60 px-2.5 py-1 text-xs text-slate-500">还有 {hiddenTaskCount} 项在任务页查看</div>
+              <div className="inline-flex w-fit rounded-full bg-white/60 px-2.5 py-1 text-xs text-slate-500">还有 {hiddenTaskCount} 项在任务页查看</div>
             ) : null}
           </div>
-          <div className="flex min-h-0 flex-col justify-center border-l border-white/50 pl-3 text-center">
+          <div className="flex min-h-0 flex-col justify-center border-l border-[var(--surface-border-light)] pl-3 text-center">
             <div className="text-[13px] text-slate-500">连续打卡</div>
             <div className="mt-1 text-[44px] font-semibold leading-none text-slate-900">{streak}</div>
             <div className="mt-2 text-[13px] leading-tight text-slate-500">当前连续</div>

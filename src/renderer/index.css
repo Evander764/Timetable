@@ -220,7 +220,7 @@ a.surface-card:hover::after {
 
 .surface-card:focus-visible {
   outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 /* Dark variant — for cards living inside .calibration-section-dark */
@@ -265,7 +265,7 @@ button.surface-card--static:hover:not(:disabled) {
   align-items: center;
   gap: 12px;
   position: relative;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 11px 14px;
   color: #687083;
   transition:
@@ -280,14 +280,19 @@ button.surface-card--static:hover:not(:disabled) {
 }
 
 .sidebar-link:hover {
-  background: #f1eee8;
+  background: var(--accent-soft);
   color: var(--color-ink);
+}
+
+.sidebar-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .sidebar-link.active {
   background: var(--color-ink);
   color: var(--color-card);
-  box-shadow: 0 12px 28px rgba(17, 17, 17, 0.12);
+  box-shadow: var(--elevation-card-hover);
 }
 
 .sidebar-link.active::after {
@@ -315,19 +320,24 @@ button.surface-card--static:hover:not(:disabled) {
   width: 28px;
   height: 28px;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.1);
   color: #b5bac4;
   transition:
-    background-color 160ms ease,
-    color 160ms ease,
-    transform 160ms ease;
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
 }
 
 .overlay-tool-button:hover,
 .overlay-tool-button-active {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.18);
   color: var(--color-primary);
+}
+
+.overlay-tool-button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .overlay-tool-button:active {
@@ -341,8 +351,8 @@ button.surface-card--static:hover:not(:disabled) {
   z-index: 50;
   min-width: 148px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 8px;
+  border: 1px solid var(--surface-border-dark);
+  border-radius: var(--radius-md);
   background: #111214;
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.32);
   backdrop-filter: blur(16px);
@@ -361,6 +371,11 @@ button.surface-card--static:hover:not(:disabled) {
 .overlay-card-menu button:hover {
   background: rgba(255, 255, 255, 0.1);
   color: var(--color-primary);
+}
+
+.overlay-card-menu button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .countdown-strip-button {
@@ -564,8 +579,8 @@ button.surface-card--static:hover:not(:disabled) {
 }
 
 .toggle-switch:focus-visible {
-  outline: 2px solid rgba(17, 18, 20, 0.72);
-  outline-offset: 3px;
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .toggle-switch[data-state="checked"] {
@@ -986,8 +1001,8 @@ button.surface-card--static:hover:not(:disabled) {
   width: min(230px, calc(100vw - 48px));
   padding: 10px;
   background: var(--color-ink);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
+  border: 1px solid var(--surface-border-dark);
+  border-radius: var(--radius-md);
   box-shadow: 0 24px 52px rgba(17, 17, 17, 0.26);
 }
 
@@ -999,12 +1014,18 @@ button.surface-card--static:hover:not(:disabled) {
   min-height: 42px;
   color: #f4f3f0;
   text-decoration: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 0 10px;
+  transition: background-color 180ms ease;
 }
 
 .os-command-item:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+
+.os-command-item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .os-command-item span {
@@ -1913,7 +1934,7 @@ button.surface-card--static:hover:not(:disabled) {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.34) 42%, transparent 58%);
+  background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.28) 42%, transparent 58%);
   opacity: 0;
   transform: translateX(-72%);
   transition:
@@ -2171,7 +2192,7 @@ button.surface-card--static:hover:not(:disabled) {
 
 .calibration-work-mode:focus-visible {
   outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .calibration-work-mode.is-active {
@@ -2377,7 +2398,7 @@ button.surface-card--static:hover:not(:disabled) {
 
 .calibration-timeline-row:focus-visible {
   outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .calibration-timeline-row svg,
@@ -2447,9 +2468,9 @@ button.surface-card--static:hover:not(:disabled) {
 
 .calibration-progress-track {
   position: relative;
-  height: 8px;
+  height: 10px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(17, 18, 20, 0.1);
 }
 
@@ -2496,6 +2517,7 @@ button.surface-card--static:hover:not(:disabled) {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
   background: linear-gradient(110deg, transparent, var(--surface-shine-light), transparent);
   opacity: 0;
@@ -2503,6 +2525,11 @@ button.surface-card--static:hover:not(:disabled) {
   transition:
     opacity 180ms ease,
     transform 500ms var(--motion-ease);
+}
+
+.calibration-task-row > * {
+  position: relative;
+  z-index: 1;
 }
 
 .calibration-task-row:hover {
@@ -2523,7 +2550,7 @@ button.surface-card--static:hover:not(:disabled) {
 
 .calibration-task-row:focus-visible {
   outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .calibration-task-row.done {
@@ -2548,9 +2575,16 @@ button.surface-card--static:hover:not(:disabled) {
   width: 26px;
   height: 26px;
   border: 1px solid #c8c2b8;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-card);
   color: var(--color-card);
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.calibration-task-row:hover .calibration-task-check {
+  border-color: var(--accent-strong);
 }
 
 .calibration-task-row.done .calibration-task-check {
@@ -2598,6 +2632,12 @@ button.surface-card--static:hover:not(:disabled) {
 .calibration-task-row.done .calibration-task-stamp {
   border-color: rgba(185, 28, 28, 0.72);
   animation: calibration-stamp 260ms var(--motion-ease) both;
+  transform: rotate(-3deg);
+  transition: transform 220ms var(--motion-ease);
+}
+
+.calibration-task-row.done:hover .calibration-task-stamp {
+  transform: rotate(-7deg) scale(1.04);
 }
 
 .calibration-archive-button {
@@ -2684,7 +2724,7 @@ button.surface-card--static:hover:not(:disabled) {
 
 .calibration-audit-panel:focus-visible {
   outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .calibration-audit-body {
@@ -2779,7 +2819,7 @@ button.surface-card--static:hover:not(:disabled) {
 
 .calibration-section-index button:focus-visible {
   outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .calibration-section-index button.active {
@@ -2845,10 +2885,16 @@ button.surface-card--static:hover:not(:disabled) {
   }
 
   .calibration-meter {
-    border-top: 1px solid rgba(255, 255, 255, 0.18);
-    border-left: 0;
-    padding-top: 18px;
-    padding-left: 0;
+    border: 0;
+    border-top: 1px solid var(--surface-border-dark);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 18px 0 0 0;
+  }
+
+  .calibration-meter::after {
+    display: none;
   }
 }
 

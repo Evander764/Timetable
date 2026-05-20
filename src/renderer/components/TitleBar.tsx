@@ -10,10 +10,10 @@ export function TitleBar() {
   const isMaximized = useAppStore((state) => state.isMaximized)
   const title = navTitleMap[location.pathname] ?? 'Timetable'
   const controlClass =
-    'h-9 w-11 rounded-md border border-[var(--color-border)] bg-white/76 p-0 text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-[#f1eee8] hover:text-slate-950 active:scale-[0.98]'
+    'h-9 w-11 rounded-[var(--radius-md)] border border-[var(--surface-border-light)] bg-[var(--surface-fill-light)] p-0 text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-[var(--accent-soft)] hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-[var(--color-primary)] focus-visible:outline-offset-[-2px] active:scale-[0.98]'
 
   return (
-    <header className="drag-region flex h-[64px] min-w-0 items-center justify-between gap-3 border-b border-[var(--color-border)] bg-white/86 px-5 backdrop-blur-xl">
+    <header className="drag-region flex h-[64px] min-w-0 items-center justify-between gap-3 border-b border-[var(--surface-border-light)] bg-[var(--surface-fill-light)] px-5 backdrop-blur-xl">
       <div className="min-w-0">
         <div className="truncate font-mono text-xs font-semibold text-slate-500">DAY_LEDGER // {formatDateKey(new Date())}</div>
         <div className="truncate text-[18px] font-semibold text-slate-900">{title}</div>
@@ -23,7 +23,7 @@ export function TitleBar() {
         <Button
           size="sm"
           variant="primary"
-          className="os-day-end-button h-9 rounded-md px-3 text-sm shadow-[0_10px_22px_rgba(17,18,20,0.16)]"
+          className="os-day-end-button h-9 rounded-[var(--radius-md)] px-3 text-sm shadow-[var(--elevation-card-hover)]"
           title="结束今日"
           aria-label="结束今日"
           onClick={() => void window.timeable.windowControl('archive')}

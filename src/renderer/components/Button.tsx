@@ -7,13 +7,13 @@ type ButtonProps = PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement>> & 
 }
 
 const baseStyles =
-  'no-drag inline-flex items-center justify-center gap-2 rounded-lg border px-4 font-medium transition duration-200 disabled:cursor-not-allowed disabled:opacity-50'
+  'no-drag inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border px-4 font-medium transition duration-200 outline-none focus-visible:outline-2 focus-visible:outline-[var(--color-primary)] focus-visible:outline-offset-[-2px] disabled:cursor-not-allowed disabled:opacity-50'
 
 const variants: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
-    'border-transparent bg-[var(--color-primary)] text-white shadow-[0_10px_24px_rgba(255,75,10,0.22)] hover:bg-[var(--color-primary-deep)]',
-  secondary: 'border-[var(--color-border)] bg-white/82 text-slate-700 hover:border-[var(--color-primary)] hover:text-slate-950',
-  ghost: 'border-transparent bg-transparent text-slate-600 hover:bg-[#f1eee8] hover:text-slate-950',
+    'border-transparent bg-[var(--color-primary)] text-white shadow-[var(--elevation-card-hover)] hover:bg-[var(--color-primary-deep)]',
+  secondary: 'border-[var(--surface-border-light)] bg-[var(--surface-fill-light)] text-slate-700 hover:border-[var(--color-primary)] hover:bg-[var(--accent-soft)] hover:text-slate-950',
+  ghost: 'border-transparent bg-transparent text-slate-600 hover:bg-[var(--accent-soft)] hover:text-slate-950',
   danger: 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100',
 }
 

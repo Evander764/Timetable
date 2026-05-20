@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { BookOpen } from 'lucide-react'
 import type { AppData } from '@shared/types/app'
+import { Badge } from '@renderer/components/Badge'
 import { getCoursesForDate, getTodayCourseStatus } from '@shared/utils/course'
 import { getCompactChineseDate, getChineseWeekdayLabel, getLunarLabel } from '@shared/utils/date'
 import { getTasksForDate } from '@shared/utils/tasks'
@@ -33,7 +34,7 @@ export function DesktopMainPanel({ data }: { data: AppData }) {
       data={data}
       footer={`课程 ${todayCourses.length} · 已完 ${courseStatus.completedCourses.length} · 剩余 ${courseStatus.remainingCourses.length} · 待办 ${pendingTasks.length}`}
     >
-      <div className="rounded-[18px] border border-white/55 bg-white/48 p-5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
+      <div className="rounded-[14px] border border-[var(--surface-border-light)] bg-[var(--surface-fill-light)] p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
         <div className="text-4xl font-semibold tracking-tight text-slate-900">{getCompactChineseDate(now)}</div>
         <div className="mt-2 text-2xl text-slate-600">{getChineseWeekdayLabel(now)}</div>
         <div className="mt-2 text-lg text-slate-400">{getLunarLabel(now)}</div>
@@ -44,7 +45,11 @@ export function DesktopMainPanel({ data }: { data: AppData }) {
           <div>
             <div className="flex items-center justify-between gap-3">
               <div className="text-2xl font-semibold text-slate-900">{courseStatusTime}</div>
-              <span className={`rounded-full px-3 py-1 text-sm text-white ${courseStatus.currentCourse ? 'bg-emerald-500' : 'bg-blue-500'}`}>{courseStatusLabel}</span>
+              <Badge
+                className={`text-white ${courseStatus.currentCourse ? 'bg-emerald-500' : 'bg-blue-500'}`}
+              >
+                {courseStatusLabel}
+              </Badge>
             </div>
             <div className="mt-2 text-[18px] font-semibold text-slate-900">{statusCourse.name}</div>
             <div className="mt-2 text-sm text-slate-500">{statusCourse.teacher} {statusCourse.location}</div>
@@ -66,7 +71,7 @@ export function DesktopMainPanel({ data }: { data: AppData }) {
 
 function SectionFrame({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="mt-4 rounded-[18px] border border-white/55 bg-white/42 p-4 shadow-[0_12px_26px_rgba(56,83,133,0.12)]">
+    <div className="mt-4 rounded-[14px] border border-[var(--surface-border-light)] bg-[var(--surface-fill-light)] p-4 shadow-[var(--elevation-card)]">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-500">
         <BookOpen size={16} />
         {title}
