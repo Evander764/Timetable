@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Archive, Check, ChevronRight, Clock, Menu, Play, X } from 'lucide-react'
 import { EmptyState } from '@renderer/components/EmptyState'
@@ -216,7 +216,7 @@ export function OverviewPage() {
                   : '把注意力集中在执行队列、目标档案和今晚的归档。'}
               </p>
             </div>
-            <div className="calibration-meter">
+            <div className="calibration-meter" role="status" aria-live="polite" aria-atomic="true">
               <span>{featuredCourse ? '距离节点' : '剩余今日'}</span>
               <strong>{featuredCourse ? featuredCountdown : getRemainingTimeToday(now)}</strong>
               <em>完成率 {completionRate}% · 待办 {taskProgress.pending}</em>
@@ -366,10 +366,11 @@ function TimelineLedgerItem({ item }: { item: TimelineItem }) {
 }
 
 function AuditPanel({ title, meta, children }: { title: string; meta: string; children: ReactNode }) {
+  const titleId = useId()
   return (
-    <section className="calibration-audit-panel">
+    <section className="calibration-audit-panel" aria-labelledby={titleId}>
       <div className="calibration-section-title">
-        <span>{title}</span>
+        <span id={titleId}>{title}</span>
         <strong>{meta}</strong>
       </div>
       <div className="calibration-audit-body">{children}</div>

@@ -18,6 +18,37 @@
   --color-indigo: #0f0a1e;
   --color-grid: rgba(27, 27, 27, 0.04);
   --motion-ease: cubic-bezier(0.76, 0, 0.24, 1);
+
+  /* Radius scale */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* Card spacing */
+  --space-card-gap: 12px;
+  --space-card-padding: 16px;
+  --space-section-padding: clamp(30px, 4vw, 58px);
+
+  /* Elevation */
+  --elevation-card: 0 6px 18px rgba(17, 18, 20, 0.05);
+  --elevation-card-hover: 0 18px 42px rgba(17, 18, 20, 0.1);
+
+  /* Accent tints — semantic aliases for repeated rgba(255, 75, 10, X) */
+  --accent-soft: rgba(255, 75, 10, 0.08);
+  --accent-mid: rgba(255, 75, 10, 0.36);
+  --accent-strong: rgba(255, 75, 10, 0.62);
+
+  /* Surfaces */
+  --surface-border-light: rgba(17, 18, 20, 0.1);
+  --surface-border-dark: rgba(255, 255, 255, 0.14);
+  --surface-fill-light: rgba(255, 254, 250, 0.92);
+  --surface-fill-dark: rgba(255, 255, 255, 0.06);
+  --surface-shine-light: rgba(255, 255, 255, 0.58);
+  --surface-shine-dark: rgba(255, 255, 255, 0.18);
+
+  /* Text on dark surfaces — bumped from #b8bec8 to #c8cdd6 for AAA on small text */
+  --text-meta-on-dark: #c8cdd6;
 }
 
 html,
@@ -115,10 +146,118 @@ button svg {
 
 .glass-card {
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: rgba(255, 254, 250, 0.82);
-  box-shadow: none;
+  box-shadow:
+    var(--elevation-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
   backdrop-filter: none;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 14px);
+}
+
+body.overlay-window .glass-card,
+body.overlay-window {
+  text-shadow: 0 0 0.5px rgba(255, 254, 250, 0.6);
+}
+
+/* Surface card — shared base for interactive small display cards.
+   Encapsulates border / radius / fill / hover lift / shine sweep so
+   .calibration-task-row, .calibration-audit-panel, .calibration-timeline-row,
+   .calibration-section, .calibration-section-index button, .calibration-work-mode
+   can share one consistent treatment instead of redefining it six times. */
+.surface-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--surface-border-light);
+  border-radius: var(--radius-md);
+  background: var(--surface-fill-light);
+  box-shadow: var(--elevation-card);
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.surface-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 0%, var(--surface-shine-light) 42%, transparent 58%);
+  opacity: 0;
+  transform: translateX(-80%);
+  transition:
+    opacity 180ms ease,
+    transform 500ms var(--motion-ease);
+}
+
+.surface-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.surface-card.is-interactive:hover,
+button.surface-card:hover:not(:disabled),
+a.surface-card:hover {
+  border-color: var(--accent-mid);
+  background: #fff7f1;
+  box-shadow: var(--elevation-card-hover);
+  transform: translateY(-2px);
+}
+
+.surface-card.is-interactive:hover::after,
+button.surface-card:hover:not(:disabled)::after,
+a.surface-card:hover::after {
+  opacity: 0.68;
+  transform: translateX(80%);
+}
+
+.surface-card:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.surface-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Dark variant — for cards living inside .calibration-section-dark */
+.surface-card--dark {
+  border-color: var(--surface-border-dark);
+  background: var(--surface-fill-dark);
+  box-shadow: none;
+}
+
+.surface-card--dark::after {
+  background: linear-gradient(110deg, transparent 0%, var(--surface-shine-dark) 42%, transparent 58%);
+}
+
+.surface-card--dark.is-interactive:hover,
+button.surface-card--dark:hover:not(:disabled),
+a.surface-card--dark:hover {
+  border-color: var(--accent-strong);
+  background: var(--accent-soft);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.22);
+}
+
+/* Static variant — display-only cards that should still feel interactive
+   but should not lift (e.g. date card showing live numbers) */
+.surface-card--static.is-interactive:hover,
+button.surface-card--static:hover:not(:disabled) {
+  transform: none;
+}
+
+/* XL variant — for the four big calibration-section containers */
+.surface-card--xl {
+  border-radius: var(--radius-md);
+}
+
+/* Mini variant — for small chip-like cards (work-mode toggles, section index) */
+.surface-card--mini {
+  border-radius: var(--radius-md);
+  box-shadow: none;
 }
 
 .sidebar-link {
@@ -1742,14 +1881,15 @@ button svg {
   scroll-margin-top: 18px;
   gap: clamp(18px, 3vw, 34px);
   overflow: hidden;
-  border: 1px solid rgba(17, 18, 20, 0.12);
-  border-radius: 8px;
+  border: 1px solid var(--surface-border-light);
+  border-radius: var(--radius-md);
   background:
     linear-gradient(rgba(17, 18, 20, 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(17, 18, 20, 0.035) 1px, transparent 1px),
     rgba(255, 254, 250, 0.9);
   background-size: 44px 44px, 44px 44px, auto;
-  padding: clamp(30px, 4vw, 58px);
+  box-shadow: var(--elevation-card);
+  padding: var(--space-section-padding);
   transition:
     border-color 180ms ease,
     box-shadow 180ms ease,
@@ -1782,8 +1922,8 @@ button svg {
 }
 
 .calibration-section:hover {
-  border-color: rgba(255, 75, 10, 0.36);
-  box-shadow: 0 18px 42px rgba(17, 18, 20, 0.08);
+  border-color: var(--accent-mid);
+  box-shadow: var(--elevation-card-hover);
   transform: translateY(-2px);
 }
 
@@ -2018,19 +2158,24 @@ button svg {
 }
 
 .calibration-work-mode:hover:not(:disabled) {
-  border-color: rgba(255, 75, 10, 0.5);
+  border-color: var(--accent-mid);
   background: #fffaf4;
   color: #1a1c20;
-  transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(17, 18, 20, 0.08);
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-card-hover);
 }
 
 .calibration-work-mode:active:not(:disabled) {
   transform: translateY(0);
 }
 
+.calibration-work-mode:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .calibration-work-mode.is-active {
-  border-color: rgba(255, 75, 10, 0.78);
+  border-color: var(--accent-strong);
   background: #111214;
   color: #fffaf2;
   box-shadow: 0 10px 22px rgba(17, 18, 20, 0.18);
@@ -2047,11 +2192,43 @@ button svg {
 }
 
 .calibration-date-card {
+  position: relative;
   align-self: start;
   justify-self: end;
   min-width: 0;
+  overflow: hidden;
   border-left: 4px solid var(--color-primary);
-  padding: 18px 0 18px 20px;
+  border-radius: var(--radius-md);
+  background: var(--surface-fill-light);
+  box-shadow: var(--elevation-card);
+  padding: 18px 18px 18px 20px;
+  transition:
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.calibration-date-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 0%, var(--surface-shine-light) 42%, transparent 58%);
+  opacity: 0;
+  transform: translateX(-80%);
+  transition:
+    opacity 180ms ease,
+    transform 500ms var(--motion-ease);
+}
+
+.calibration-date-card:hover::after {
+  opacity: 0.6;
+  transform: translateX(80%);
+}
+
+.calibration-date-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .calibration-date-card span,
@@ -2072,6 +2249,8 @@ button svg {
 
 .calibration-date-card strong {
   margin-top: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--surface-border-light);
   font-size: 18px;
 }
 
@@ -2082,16 +2261,48 @@ button svg {
 }
 
 .calibration-meter {
+  position: relative;
   display: grid;
   min-width: 0;
   gap: 10px;
-  border-left: 1px solid rgba(255, 255, 255, 0.18);
-  padding-left: 26px;
+  overflow: hidden;
+  border: 1px solid var(--surface-border-dark);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--surface-fill-dark);
+  padding: 18px 22px;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.calibration-meter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 0%, var(--surface-shine-dark) 42%, transparent 58%);
+  opacity: 0;
+  transform: translateX(-80%);
+  transition:
+    opacity 180ms ease,
+    transform 500ms var(--motion-ease);
+}
+
+.calibration-meter:hover::after {
+  opacity: 0.6;
+  transform: translateX(80%);
+}
+
+.calibration-meter > * {
+  position: relative;
+  z-index: 1;
 }
 
 .calibration-meter span,
 .calibration-meter em {
-  color: #b9bdc5;
+  color: var(--text-meta-on-dark);
   font-style: normal;
 }
 
@@ -2113,27 +2324,60 @@ button svg {
 }
 
 .calibration-timeline-row {
+  position: relative;
   display: grid;
   grid-template-columns: 18px 48px minmax(0, 1fr);
   align-items: center;
   gap: 9px;
   min-width: 0;
   min-height: 68px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  border: 1px solid var(--surface-border-dark);
+  border-radius: var(--radius-md);
+  background: var(--surface-fill-dark);
   padding: 11px;
   transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    transform 160ms ease;
+    border-color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.calibration-timeline-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 0%, var(--surface-shine-dark) 42%, transparent 58%);
+  opacity: 0;
+  transform: translateX(-80%);
+  transition:
+    opacity 180ms ease,
+    transform 500ms var(--motion-ease);
+}
+
+.calibration-timeline-row > * {
+  position: relative;
+  z-index: 1;
 }
 
 .calibration-timeline-row:hover,
 .calibration-timeline-row.active {
-  border-color: rgba(255, 75, 10, 0.62);
-  background: rgba(255, 75, 10, 0.1);
-  transform: translateY(-1px);
+  border-color: var(--accent-strong);
+  background: var(--accent-soft);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.22);
+  transform: translateY(-2px);
+}
+
+.calibration-timeline-row:hover::before {
+  opacity: 0.72;
+  transform: translateX(80%);
+}
+
+.calibration-timeline-row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .calibration-timeline-row svg,
@@ -2215,6 +2459,7 @@ button svg {
   min-width: 8px;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--color-seal), var(--color-primary), var(--color-gold));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .calibration-task-list {
@@ -2233,16 +2478,18 @@ button svg {
   width: 100%;
   min-height: 68px;
   overflow: hidden;
-  border: 1px solid rgba(17, 18, 20, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 254, 250, 0.86);
+  border: 1px solid var(--surface-border-light);
+  border-radius: var(--radius-md);
+  background: var(--surface-fill-light);
+  box-shadow: var(--elevation-card);
   color: #17191c;
   padding: 11px 14px;
   text-align: left;
   transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    transform 160ms ease;
+    border-color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .calibration-task-row::before {
@@ -2250,27 +2497,33 @@ button svg {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(110deg, transparent, rgba(255, 255, 255, 0.58), transparent);
+  background: linear-gradient(110deg, transparent, var(--surface-shine-light), transparent);
   opacity: 0;
   transform: translateX(-80%);
   transition:
-    opacity 160ms ease,
+    opacity 180ms ease,
     transform 500ms var(--motion-ease);
 }
 
 .calibration-task-row:hover {
-  border-color: rgba(255, 75, 10, 0.48);
+  border-color: var(--accent-mid);
   background: #fff7f1;
+  box-shadow: var(--elevation-card-hover);
   transform: translateY(-2px);
 }
 
 .calibration-task-row:hover::before {
-  opacity: 0.65;
+  opacity: 0.68;
   transform: translateX(80%);
 }
 
 .calibration-task-row:active {
-  transform: translateY(1px);
+  transform: translateY(0);
+}
+
+.calibration-task-row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .calibration-task-row.done {
@@ -2384,22 +2637,54 @@ button svg {
 }
 
 .calibration-audit-panel {
+  position: relative;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.065);
-  padding: 16px;
+  border: 1px solid var(--surface-border-dark);
+  border-radius: var(--radius-md);
+  background: var(--surface-fill-dark);
+  padding: var(--space-card-padding);
   transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    transform 160ms ease;
+    border-color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.calibration-audit-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 0%, var(--surface-shine-dark) 42%, transparent 58%);
+  opacity: 0;
+  transform: translateX(-80%);
+  transition:
+    opacity 180ms ease,
+    transform 500ms var(--motion-ease);
+}
+
+.calibration-audit-panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 .calibration-audit-panel:hover {
-  border-color: rgba(255, 75, 10, 0.42);
-  background: rgba(255, 75, 10, 0.08);
-  transform: translateY(-1px);
+  border-color: var(--accent-mid);
+  background: var(--accent-soft);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.22);
+  transform: translateY(-2px);
+}
+
+.calibration-audit-panel:hover::before {
+  opacity: 0.68;
+  transform: translateX(80%);
+}
+
+.calibration-audit-panel:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .calibration-audit-body {
@@ -2415,7 +2700,7 @@ button svg {
   justify-content: space-between;
   gap: 14px;
   min-height: 34px;
-  color: #b8bec8;
+  color: var(--text-meta-on-dark);
 }
 
 .calibration-audit-row span {
@@ -2454,17 +2739,17 @@ button svg {
   min-width: 0;
   min-height: 44px;
   overflow: hidden;
-  border: 1px solid rgba(17, 18, 20, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 254, 250, 0.76);
+  border: 1px solid var(--surface-border-light);
+  border-radius: var(--radius-md);
+  background: var(--surface-fill-light);
   color: #687083;
   padding: 0 12px;
   text-align: left;
   transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    color 160ms ease,
-    transform 160ms ease;
+    border-color 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
 }
 
 .calibration-section-index button::after {
@@ -2472,24 +2757,29 @@ button svg {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(110deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+  background: linear-gradient(110deg, transparent, var(--surface-shine-light), transparent);
   opacity: 0;
   transform: translateX(-80%);
   transition:
-    opacity 160ms ease,
-    transform 480ms var(--motion-ease);
+    opacity 180ms ease,
+    transform 500ms var(--motion-ease);
 }
 
 .calibration-section-index button:hover {
-  border-color: rgba(255, 75, 10, 0.4);
+  border-color: var(--accent-mid);
   background: #fff7f1;
   color: var(--color-ink);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
 .calibration-section-index button:hover::after {
-  opacity: 0.7;
+  opacity: 0.68;
   transform: translateX(80%);
+}
+
+.calibration-section-index button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .calibration-section-index button.active {
