@@ -1,13 +1,10 @@
-import { constants } from 'node:fs'
-import { access, lstat, mkdir, readFile, readlink, rm, symlink } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
-import { tmpdir } from 'node:os'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const projectRoot = join(__dirname, '..')
-const aliasRoot = join(tmpdir(), 'timetable-builder-link')
 const args = process.argv.slice(2)
 const packageJson = JSON.parse(await readFile(join(projectRoot, 'package.json'), 'utf8'))
 const buildId = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)
@@ -18,38 +15,12 @@ if (process.platform !== 'win32') {
   process.exit(1)
 }
 
-await ensureAliasPath(aliasRoot, projectRoot)
-await runCommand('npm.cmd', ['run', 'build'], aliasRoot)
+await runCommand('npm.cmd', ['run', 'build'], projectRoot)
 await runCommand(
-  join(aliasRoot, 'node_modules', '.bin', 'electron-builder.cmd'),
+  join(projectRoot, 'node_modules', '.bin', 'electron-builder.cmd'),
   ['--config', 'electron-builder.json5', `--config.directories.output=${outputDir}`, '--win', ...args],
-  aliasRoot,
+  projectRoot,
 )
-
-async function ensureAliasPath(aliasPath, targetPath) {
-  await mkdir(dirname(aliasPath), { recursive: true })
-
-  try {
-    const stat = await lstat(aliasPath)
-    if (stat.isSymbolicLink()) {
-      const linkedTarget = await readlink(aliasPath)
-      if (normalizePath(linkedTarget) === normalizePath(targetPath)) {
-        return
-      }
-    }
-
-    await rm(aliasPath, { recursive: true, force: true })
-  } catch {
-    // Alias does not exist yet.
-  }
-
-  await symlink(targetPath, aliasPath, 'junction')
-  await access(aliasPath, constants.R_OK)
-}
-
-function normalizePath(input) {
-  return input.replaceAll('/', '\\').toLowerCase()
-}
 
 function runCommand(command, commandArgs, cwd) {
   return new Promise((resolve, reject) => {
